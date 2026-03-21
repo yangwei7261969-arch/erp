@@ -35,5 +35,19 @@ CREATE INDEX IF NOT EXISTS process_tracking_process_idx ON process_tracking(proc
 CREATE INDEX IF NOT EXISTS process_tracking_worker_idx ON process_tracking(worker_id);
 CREATE INDEX IF NOT EXISTS process_tracking_created_idx ON process_tracking(created_at);
 
--- 为production_progress表添加缺失的字段
+-- 为cutting_orders添加分床相关字段
+ALTER TABLE cutting_orders ADD COLUMN IF NOT EXISTS bed_number INTEGER;
+ALTER TABLE cutting_orders ADD COLUMN IF NOT EXISTS total_beds INTEGER;
+ALTER TABLE cutting_orders ADD COLUMN IF NOT EXISTS size_breakdown JSONB;
+
+-- 为production_orders添加尺码明细字段
+ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS size_breakdown JSONB;
+
+-- 为production_progress添加缺失的字段
 ALTER TABLE production_progress ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- 添加示例数据（可选）
+-- 示例：为订单添加尺码明细
+-- UPDATE production_orders 
+-- SET size_breakdown = '{"S": 50, "M": 100, "L": 100, "XL": 50}'::jsonb
+-- WHERE size_breakdown IS NULL AND quantity > 0;

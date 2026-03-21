@@ -6,10 +6,6 @@ export async function POST(request: NextRequest) {
   try {
     const client = getSupabaseClient();
 
-    // 使用RPC执行SQL创建表
-    // 注意：Supabase通常需要通过SQL编辑器或迁移工具创建表
-    // 这里我们尝试直接创建，如果失败则返回提示
-    
     // 检查cutting_bundles表是否存在
     const { error: checkBundlesError } = await client
       .from('cutting_bundles')
@@ -78,6 +74,17 @@ CREATE INDEX IF NOT EXISTS process_tracking_bundle_idx ON process_tracking(bundl
 CREATE INDEX IF NOT EXISTS process_tracking_process_idx ON process_tracking(process_id);
 CREATE INDEX IF NOT EXISTS process_tracking_worker_idx ON process_tracking(worker_id);
 CREATE INDEX IF NOT EXISTS process_tracking_created_idx ON process_tracking(created_at);
+
+-- 为cutting_orders添加分床相关字段
+ALTER TABLE cutting_orders ADD COLUMN IF NOT EXISTS bed_number INTEGER;
+ALTER TABLE cutting_orders ADD COLUMN IF NOT EXISTS total_beds INTEGER;
+ALTER TABLE cutting_orders ADD COLUMN IF NOT EXISTS size_breakdown JSONB;
+
+-- 为production_orders添加尺码明细字段
+ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS size_breakdown JSONB;
+
+-- 为production_progress添加缺失的字段
+ALTER TABLE production_progress ADD COLUMN IF NOT EXISTS notes TEXT;
       `
     });
   } catch (error) {

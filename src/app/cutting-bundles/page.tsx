@@ -30,7 +30,9 @@ import {
   Trash2, 
   Scissors,
   Search,
-  FileText
+  FileText,
+  Layers,
+  AlertCircle,
 } from 'lucide-react';
 
 interface CuttingBundle {
@@ -56,6 +58,8 @@ interface CuttingOrder {
   style_no: string;
   color: string;
   quantity: number;
+  size_breakdown?: Record<string, number>;
+  bed_number?: number;
 }
 
 interface Process {
@@ -78,15 +82,17 @@ export default function CuttingBundlesPage() {
   const [selectedBundle, setSelectedBundle] = useState<CuttingBundle | null>(null);
   const [printQuantity, setPrintQuantity] = useState(1);
 
-  // 分扎表单
-  const [bundleForm, setBundleForm] = useState({
-    cutting_order_id: '',
-    size: '',
-    color: '',
-    quantity: 50,
-    bundle_count: 1,
-  });
-  const [bundleSizes, setBundleSizes] = useState<{ size: string; color: string; quantity: number; bundle_count: number }[]>([]);
+  // 选中的裁床单
+  const [selectedCuttingOrder, setSelectedCuttingOrder] = useState<CuttingOrder | null>(null);
+  
+  // 分扎数据 - 每个尺码单独配置
+  const [bundleConfig, setBundleConfig] = useState<{
+    size: string;
+    color: string;
+    orderQty: number;
+    piecesPerBundle: number;  // 每扎件数
+    bundleCount: number;       // 扎数
+  }[]>([]);
 
   useEffect(() => {
     fetchBundles();
@@ -114,7 +120,7 @@ export default function CuttingBundlesPage() {
 
   const fetchCuttingOrders = async () => {
     try {
-      const res = await fetch('/api/cutting-orders');
+      const res = await fetch('/api/cutting-orders?pageSize=100');
       const data = await res.json();
       if (data.success) {
         setCuttingOrders(data.data);
@@ -136,14 +142,66 @@ export default function CuttingBundlesPage() {
     }
   };
 
+  // 选择裁床单后初始化分扎配置
+  const handleSelectCuttingOrder = (orderId: string) => {
+    const order = cuttingOrders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    setSelectedCuttingOrder(order);
+    
+    // 根据尺码明细初始化分扎配置
+    const sizeBreakdown = order.size_breakdown || { 'M': order.quantity };
+    
+    const config = Object.entries(sizeBreakdown).map(([size, qty]) => ({
+      size,
+      color: order.color,
+      orderQty: qty as number,
+      piecesPerBundle: 50,  // 默认每扎50件
+      bundleCount: Math.ceil((qty as number) / 50),
+    }));
+    
+    setBundleConfig(config);
+  };
+
+  // 更新分扎配置
+  const updateBundleConfig = (index: number, field: string, value: number) => {
+    const newConfig = [...bundleConfig];
+    newConfig[index] = {
+      ...newConfig[index],
+      [field]: value,
+    };
+    
+    // 如果修改了每扎件数，自动计算扎数
+    if (field === 'piecesPerBundle' && value > 0) {
+      newConfig[index].bundleCount = Math.ceil(newConfig[index].orderQty / value);
+    }
+    
+    // 如果修改了扎数，自动计算每扎件数
+    if (field === 'bundleCount' && value > 0) {
+      newConfig[index].piecesPerBundle = Math.ceil(newConfig[index].orderQty / value);
+    }
+    
+    setBundleConfig(newConfig);
+  };
+
   const handleCreateBundles = async () => {
+    if (!selectedCuttingOrder) return;
+    
     try {
+      // 构建分扎数据
+      const bundles = bundleConfig.map(config => ({
+        size: config.size,
+        color: config.color,
+        quantity: config.piecesPerBundle,
+        bundle_count: config.bundleCount,
+      })).filter(b => b.bundle_count > 0);
+
       const res = await fetch('/api/cutting-bundles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          cutting_order_id: bundleForm.cutting_order_id,
-          bundles: bundleSizes,
+          cutting_order_id: selectedCuttingOrder.id,
+          bundles,
         }),
       });
 
@@ -151,7 +209,8 @@ export default function CuttingBundlesPage() {
       if (data.success) {
         alert(data.message);
         setCreateDialogOpen(false);
-        setBundleSizes([]);
+        setSelectedCuttingOrder(null);
+        setBundleConfig([]);
         fetchBundles();
       } else {
         alert(data.error || '创建失败');
@@ -177,27 +236,9 @@ export default function CuttingBundlesPage() {
     }
   };
 
-  const handleAddSize = () => {
-    if (!bundleForm.size || bundleForm.quantity <= 0) {
-      alert('请填写尺码和数量');
-      return;
-    }
-    setBundleSizes([
-      ...bundleSizes,
-      {
-        size: bundleForm.size,
-        color: bundleForm.color,
-        quantity: bundleForm.quantity,
-        bundle_count: bundleForm.bundle_count,
-      },
-    ]);
-    setBundleForm({ ...bundleForm, size: '', quantity: 50, bundle_count: 1 });
-  };
-
   const handlePrintTickets = () => {
     if (!selectedBundle) return;
     
-    // 生成打印内容
     const printContent = generatePrintContent(selectedBundle, printQuantity);
     
     const printWindow = window.open('', '_blank');
@@ -273,6 +314,10 @@ export default function CuttingBundlesPage() {
     return <Badge className={className}>{label}</Badge>;
   };
 
+  // 计算分扎汇总
+  const totalBundles = bundleConfig.reduce((sum, c) => sum + c.bundleCount, 0);
+  const totalPieces = bundleConfig.reduce((sum, c) => sum + c.orderQty, 0);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -281,7 +326,7 @@ export default function CuttingBundlesPage() {
             <Package className="h-8 w-8" />
             裁床分扎管理
           </h1>
-          <p className="text-gray-500 mt-1">管理裁床分扎、打印工票</p>
+          <p className="text-gray-500 mt-1">按尺码分扎，每扎独立管理，带二维码追溯</p>
         </div>
         
         <div className="flex gap-3">
@@ -319,9 +364,9 @@ export default function CuttingBundlesPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {bundles.filter(b => b.status === 'completed').length}
+              {bundles.reduce((sum, b) => sum + b.quantity, 0)}
             </div>
-            <div className="text-sm text-gray-500">已完成</div>
+            <div className="text-sm text-gray-500">总件数</div>
           </CardContent>
         </Card>
       </div>
@@ -341,7 +386,7 @@ export default function CuttingBundlesPage() {
             </div>
             
             <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[250px]">
                 <SelectValue placeholder="选择裁床单" />
               </SelectTrigger>
               <SelectContent>
@@ -349,6 +394,7 @@ export default function CuttingBundlesPage() {
                 {cuttingOrders.map(order => (
                   <SelectItem key={order.id} value={order.id}>
                     {order.order_no} - {order.style_no}
+                    {order.bed_number && ` (第${order.bed_number}床)`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -448,114 +494,148 @@ export default function CuttingBundlesPage() {
 
       {/* 创建分扎对话框 */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Scissors className="h-5 w-5" />
+              <Layers className="h-5 w-5" />
               创建分扎
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>选择裁床单</Label>
-                <Select 
-                  value={bundleForm.cutting_order_id} 
-                  onValueChange={(value) => {
-                    const order = cuttingOrders.find(o => o.id === value);
-                    setBundleForm({ 
-                      ...bundleForm, 
-                      cutting_order_id: value,
-                      color: order?.color || ''
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="选择裁床单" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cuttingOrders.map(order => (
-                      <SelectItem key={order.id} value={order.id}>
-                        {order.order_no} - {order.style_no}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="border rounded-lg p-4 space-y-4">
-              <h4 className="font-medium">添加尺码分扎</h4>
-              <div className="grid grid-cols-4 gap-3">
-                <div className="space-y-2">
-                  <Label>尺码</Label>
-                  <Input 
-                    value={bundleForm.size}
-                    onChange={(e) => setBundleForm({ ...bundleForm, size: e.target.value })}
-                    placeholder="如: M"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>颜色</Label>
-                  <Input 
-                    value={bundleForm.color}
-                    onChange={(e) => setBundleForm({ ...bundleForm, color: e.target.value })}
-                    placeholder="颜色"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>每扎数量</Label>
-                  <Input 
-                    type="number"
-                    value={bundleForm.quantity}
-                    onChange={(e) => setBundleForm({ ...bundleForm, quantity: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>扎数</Label>
-                  <Input 
-                    type="number"
-                    value={bundleForm.bundle_count}
-                    onChange={(e) => setBundleForm({ ...bundleForm, bundle_count: parseInt(e.target.value) || 1 })}
-                  />
-                </div>
-              </div>
-              <Button onClick={handleAddSize} variant="outline" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                添加
-              </Button>
-            </div>
-
-            {bundleSizes.length > 0 && (
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-3">待创建分扎列表</h4>
-                <div className="space-y-2">
-                  {bundleSizes.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                      <span>{item.size} - {item.color} - {item.quantity}件 × {item.bundle_count}扎</span>
-                      <span className="text-sm text-gray-500">
-                        共 {item.quantity * item.bundle_count} 件
-                      </span>
-                    </div>
+          <div className="space-y-6 py-4">
+            {/* 选择裁床单 */}
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">选择裁床单 *</Label>
+              <Select 
+                value={selectedCuttingOrder?.id || ''} 
+                onValueChange={handleSelectCuttingOrder}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择裁床单" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cuttingOrders.map(order => (
+                    <SelectItem key={order.id} value={order.id}>
+                      {order.order_no} - {order.style_no} ({order.color})
+                      {order.bed_number && ` - 第${order.bed_number}床`}
+                      - {order.quantity}件
+                    </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedCuttingOrder && (
+              <>
+                {/* 裁床单信息 */}
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="pt-4">
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">裁床单号：</span>
+                        <span className="font-medium">{selectedCuttingOrder.order_no}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">款号：</span>
+                        <span className="font-medium">{selectedCuttingOrder.style_no}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">颜色：</span>
+                        <span className="font-medium">{selectedCuttingOrder.color}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">总数量：</span>
+                        <span className="font-bold">{selectedCuttingOrder.quantity}</span> 件
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 分扎配置 */}
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">分扎配置（每码可自定义）</Label>
+                  
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>尺码</TableHead>
+                        <TableHead>颜色</TableHead>
+                        <TableHead className="text-right">订单数量</TableHead>
+                        <TableHead className="text-right">每扎件数</TableHead>
+                        <TableHead className="text-right">扎数</TableHead>
+                        <TableHead className="text-right">实际分扎件数</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {bundleConfig.map((config, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{config.size}</TableCell>
+                          <TableCell>{config.color}</TableCell>
+                          <TableCell className="text-right">{config.orderQty}</TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={config.piecesPerBundle}
+                              onChange={(e) => updateBundleConfig(index, 'piecesPerBundle', parseInt(e.target.value) || 1)}
+                              className="w-20 ml-auto text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={config.bundleCount}
+                              onChange={(e) => updateBundleConfig(index, 'bundleCount', parseInt(e.target.value) || 1)}
+                              className="w-16 ml-auto text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            <span className={config.piecesPerBundle * config.bundleCount >= config.orderQty ? 'text-green-600' : 'text-orange-500'}>
+                              {config.piecesPerBundle * config.bundleCount}
+                            </span>
+                            {config.piecesPerBundle * config.bundleCount < config.orderQty && (
+                              <span className="text-orange-500 text-xs ml-1">
+                                (少{config.orderQty - config.piecesPerBundle * config.bundleCount})
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-gray-50 font-bold">
+                        <TableCell>合计</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right">{totalPieces}</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right">{totalBundles}</TableCell>
+                        <TableCell className="text-right">
+                          {bundleConfig.reduce((sum, c) => sum + c.piecesPerBundle * c.bundleCount, 0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>提示：每扎件数 × 扎数 应等于或略大于订单数量，剩余部分将合并到最后一扎</span>
+                  </div>
                 </div>
-                <div className="mt-3 pt-3 border-t text-right font-medium">
-                  总计: {bundleSizes.reduce((sum, item) => sum + item.quantity * item.bundle_count, 0)} 件，
-                  {bundleSizes.reduce((sum, item) => sum + item.bundle_count, 0)} 扎
-                </div>
-              </div>
+              </>
             )}
 
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setCreateDialogOpen(false);
+                setSelectedCuttingOrder(null);
+                setBundleConfig([]);
+              }}>
                 取消
               </Button>
               <Button 
                 onClick={handleCreateBundles}
-                disabled={!bundleForm.cutting_order_id || bundleSizes.length === 0}
+                disabled={!selectedCuttingOrder || bundleConfig.length === 0 || totalBundles === 0}
               >
-                创建分扎
+                创建分扎 ({totalBundles}扎)
               </Button>
             </div>
           </div>

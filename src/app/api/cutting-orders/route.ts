@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const productionOrderId = searchParams.get('productionOrderId');
+    const productionOrderId = searchParams.get('production_order_id');
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
-    if (status && status !== 'all') {
+    if (status) {
       query = query.eq('status', status);
     }
 
@@ -52,26 +52,33 @@ export async function POST(request: NextRequest) {
     const client = getSupabaseClient();
 
     // 生成裁床单号
-    const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const { data: lastOrder } = await client
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const { count } = await client
       .from('cutting_orders')
-      .select('order_no')
-      .like('order_no', `CT${dateStr}%`)
-      .order('order_no', { ascending: false })
-      .limit(1);
-
-    let orderNo = `CT${dateStr}001`;
-    if (lastOrder && lastOrder.length > 0) {
-      const lastNo = parseInt(lastOrder[0].order_no.slice(-3));
-      orderNo = `CT${dateStr}${String(lastNo + 1).padStart(3, '0')}`;
-    }
+      .select('id', { count: 'exact', head: true });
+    
+    const orderNo = `CUT${dateStr}${String((count || 0) + 1).padStart(3, '0')}`;
 
     const { data, error } = await client
       .from('cutting_orders')
       .insert({
-        ...body,
         order_no: orderNo,
+        production_order_id: body.production_order_id || null,
+        style_no: body.style_no,
+        color: body.color,
+        fabric_code: body.fabric_code || null,
+        fabric_qty: body.fabric_qty || null,
+        cutting_qty: body.cutting_qty,
+        completed_qty: 0,
+        defective_qty: 0,
+        status: body.status || 'pending',
+        cutting_date: body.cutting_date || new Date().toISOString().slice(0, 10),
+        workshop: body.workshop || null,
+        cutting_team: body.cutting_team || null,
+        notes: body.notes || null,
+        size_breakdown: body.size_breakdown || null,
+        bed_number: body.bed_number || null,
+        total_beds: body.total_beds || null,
       })
       .select()
       .single();
@@ -80,17 +87,77 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 如果关联了生产订单，更新生产订单的完成数量
-    if (body.production_order_id && body.completed_qty > 0) {
-      await client.rpc('update_production_completed_qty', {
-        order_id: body.production_order_id,
-        qty: body.completed_qty,
-      });
+    // 如果关联了生产订单，更新生产订单状态
+    if (body.production_order_id) {
+      await client
+        .from('production_orders')
+        .update({ status: 'in_progress' })
+        .eq('id', body.production_order_id);
     }
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('Create cutting order error:', error);
     return NextResponse.json({ error: '创建失败' }, { status: 500 });
+  }
+}
+
+// 更新裁床单
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, status, completed_qty } = body;
+    const client = getSupabaseClient();
+
+    const updateData: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status) updateData.status = status;
+    if (completed_qty !== undefined) updateData.completed_qty = completed_qty;
+
+    const { data, error } = await client
+      .from('cutting_orders')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, data });
+  } catch (error) {
+    console.error('Update cutting order error:', error);
+    return NextResponse.json({ error: '更新失败' }, { status: 500 });
+  }
+}
+
+// 删除裁床单
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ error: '缺少ID参数' }, { status: 400 });
+    }
+
+    const client = getSupabaseClient();
+    
+    const { error } = await client
+      .from('cutting_orders')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete cutting order error:', error);
+    return NextResponse.json({ error: '删除失败' }, { status: 500 });
   }
 }
