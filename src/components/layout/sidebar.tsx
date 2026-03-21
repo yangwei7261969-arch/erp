@@ -31,6 +31,11 @@ import {
   QrCode,
   GitBranch,
   Layers,
+  Send,
+  Building2,
+  FileCheck,
+  ClipboardCheck,
+  LogIn,
 } from 'lucide-react';
 
 const menuItems = [
@@ -44,6 +49,12 @@ const menuItems = [
     title: '生产管理',
     icon: Factory,
     href: '/production',
+    roles: ['production_manager', 'boss'],
+  },
+  {
+    title: '生产准备',
+    icon: ClipboardCheck,
+    href: '/production-prep',
     roles: ['production_manager', 'boss'],
   },
   {
@@ -95,6 +106,18 @@ const menuItems = [
     roles: ['craft'],
   },
   {
+    title: '尾部处理',
+    icon: FileCheck,
+    href: '/finishing',
+    roles: ['production_manager', 'finishing'],
+  },
+  {
+    title: '发货任务',
+    icon: Truck,
+    href: '/shipping-tasks',
+    roles: ['warehouse', 'boss'],
+  },
+  {
     title: '物料库存',
     icon: Package,
     href: '/inventory',
@@ -105,6 +128,18 @@ const menuItems = [
     icon: Box,
     href: '/finished-inventory',
     roles: ['warehouse', 'manager'],
+  },
+  {
+    title: '外发订单',
+    icon: Send,
+    href: '/outsource-orders',
+    roles: ['production_manager', 'boss'],
+  },
+  {
+    title: '供应商管理',
+    icon: Building2,
+    href: '/suppliers',
+    roles: ['boss', 'manager'],
   },
   {
     title: '财务中心',
@@ -159,6 +194,12 @@ const menuItems = [
     icon: Settings,
     href: '/settings',
     roles: ['admin'],
+  },
+  {
+    title: '供应商登录',
+    icon: LogIn,
+    href: '/login',
+    roles: ['all'],
   },
 ];
 
