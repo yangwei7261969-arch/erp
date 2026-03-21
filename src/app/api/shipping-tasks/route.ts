@@ -16,12 +16,18 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
+    const supplierId = searchParams.get('supplier_id');
     const client = getSupabaseClient();
 
     let query = client.from('shipping_tasks').select('*');
 
     if (status) {
       query = query.eq('status', status);
+    }
+    
+    // 供应商筛选 - 只看自己的发货记录
+    if (supplierId) {
+      query = query.eq('supplier_id', supplierId);
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
@@ -75,6 +81,7 @@ export async function POST(request: NextRequest) {
         outsource_order_id: body.outsource_order_id,
         production_order_id: body.production_order_id,
         customer_id: body.customer_id,
+        supplier_id: body.supplier_id,
         style_no: body.style_no,
         quantity: body.quantity,
         courier: body.courier,
@@ -82,6 +89,7 @@ export async function POST(request: NextRequest) {
         shipping_address: body.shipping_address,
         receiver: body.receiver,
         receiver_phone: body.receiver_phone,
+        ship_date: body.ship_date,
         status: 'pending',
         notes: body.notes,
         created_by: body.created_by,
