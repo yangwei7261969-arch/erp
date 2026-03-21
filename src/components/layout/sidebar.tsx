@@ -36,6 +36,7 @@ import {
   FileCheck,
   ClipboardCheck,
   LogIn,
+  Calendar,
 } from 'lucide-react';
 
 const menuItems = [
@@ -110,6 +111,12 @@ const menuItems = [
     icon: FileCheck,
     href: '/finishing',
     roles: ['production_manager', 'finishing'],
+  },
+  {
+    title: '出货日历',
+    icon: Calendar,
+    href: '/shipping-calendar',
+    roles: ['warehouse', 'boss', 'manager'],
   },
   {
     title: '发货任务',
