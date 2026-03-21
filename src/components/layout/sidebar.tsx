@@ -298,10 +298,9 @@ const menuGroups: MenuGroup[] = [
 interface SidebarProps {
   className?: string;
   onMobileClose?: () => void;
-  isMobile?: boolean;
 }
 
-export function Sidebar({ className, onMobileClose, isMobile }: SidebarProps) {
+export function Sidebar({ className, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 
@@ -312,54 +311,43 @@ export function Sidebar({ className, onMobileClose, isMobile }: SidebarProps) {
     }
   };
 
-  // 移动端始终显示完整菜单
-  const showCollapsed = collapsed && !isMobile;
-
   return (
     <div
       className={cn(
-        'relative flex flex-col border-r bg-background h-full',
-        isMobile ? 'w-64' : collapsed ? 'w-16' : 'w-64',
-        !isMobile && 'transition-all duration-300'
+        'relative flex flex-col border-r bg-background transition-all duration-300 h-full',
+        collapsed ? 'w-16' : 'w-64',
+        className
       )}
     >
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b px-4">
-        {!showCollapsed && (
+        {!collapsed && (
           <div className="flex items-center gap-2">
             <Factory className="h-6 w-6 text-primary" />
             <span className="text-lg font-bold">服装ERP</span>
           </div>
         )}
-        
-        {/* PC端收起/展开按钮 */}
-        {!isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn('h-8 w-8', showCollapsed && 'mx-auto')}
-            title={collapsed ? '展开菜单' : '收起菜单'}
-          >
-            {showCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
-        )}
-        
-        {/* 移动端关闭按钮 */}
-        {isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onMobileClose}
-            className="h-8 w-8"
-          >
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCollapsed(!collapsed)}
+          className="h-8 w-8 hidden md:flex"
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
             <ChevronLeft className="h-4 w-4" />
-          </Button>
-        )}
+          )}
+        </Button>
+        {/* 移动端关闭按钮 */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMobileClose}
+          className="h-8 w-8 md:hidden"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Menu with Groups */}
@@ -368,7 +356,7 @@ export function Sidebar({ className, onMobileClose, isMobile }: SidebarProps) {
           {menuGroups.map((group) => (
             <div key={group.title} className="mb-2">
               {/* Group Title */}
-              {!showCollapsed && (
+              {!collapsed && (
                 <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <group.icon className="h-3.5 w-3.5" />
                   {group.title}
@@ -384,12 +372,12 @@ export function Sidebar({ className, onMobileClose, isMobile }: SidebarProps) {
                         variant={isActive ? 'secondary' : 'ghost'}
                         className={cn(
                           'w-full justify-start gap-3 h-9',
-                          showCollapsed && 'justify-center px-0'
+                          collapsed && 'justify-center px-0'
                         )}
-                        title={showCollapsed ? item.title : undefined}
+                        title={collapsed ? item.title : undefined}
                       >
                         <item.icon className="h-4 w-4 flex-shrink-0" />
-                        {!showCollapsed && <span className="text-sm">{item.title}</span>}
+                        {!collapsed && <span className="text-sm">{item.title}</span>}
                       </Button>
                     </Link>
                   );
@@ -402,7 +390,7 @@ export function Sidebar({ className, onMobileClose, isMobile }: SidebarProps) {
 
       {/* User Info */}
       <div className="border-t p-4">
-        {!showCollapsed ? (
+        {!collapsed ? (
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
               U
