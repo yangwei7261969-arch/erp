@@ -77,6 +77,12 @@ const menuItems = [
     roles: ['production_manager', 'boss'],
   },
   {
+    title: '款式工序配置',
+    icon: ClipboardList,
+    href: '/style-processes',
+    roles: ['production_manager', 'boss'],
+  },
+  {
     title: '计件工资',
     icon: Calculator,
     href: '/piece-wages',

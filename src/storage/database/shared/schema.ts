@@ -684,3 +684,30 @@ export const processTracking = pgTable("process_tracking", {
 	index("process_tracking_worker_idx").using("btree", table.workerId.asc().nullsLast().op("text_ops")),
 	index("process_tracking_created_idx").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
 ]);
+
+// 款式工序配置表
+export const styleProcesses = pgTable("style_processes", {
+	id: varchar({ length: 36 }).default(genRandomUUID()).primaryKey().notNull(),
+	styleNo: varchar("style_no", { length: 100 }).notNull(),
+	processId: varchar("process_id", { length: 36 }).notNull(),
+	sequence: integer().default(1).notNull(),
+	unitPrice: numeric("unit_price", { precision: 10, scale: 2 }),
+	notes: text(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("style_processes_style_no_idx").using("btree", table.styleNo.asc().nullsLast().op("text_ops")),
+	index("style_processes_process_id_idx").using("btree", table.processId.asc().nullsLast().op("text_ops")),
+]);
+
+// 工序模板表
+export const processTemplates = pgTable("process_templates", {
+	id: varchar({ length: 36 }).default(genRandomUUID()).primaryKey().notNull(),
+	name: varchar({ length: 200 }).notNull(),
+	description: text(),
+	processes: jsonb().notNull(),
+	isDefault: boolean("is_default").default(false),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("process_templates_name_idx").using("btree", table.name.asc().nullsLast().op("text_ops")),
+]);
