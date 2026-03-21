@@ -86,6 +86,7 @@ export default function CraftProcessesPage() {
   const [submitting, setSubmitting] = useState(false);
   
   const [productionOrders, setProductionOrders] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
     production_order_id: '',
@@ -93,6 +94,7 @@ export default function CraftProcessesPage() {
     process_type: 'printing',
     quantity: '',
     unit_price: '',
+    supplier_id: '',
     notes: '',
   });
 
@@ -127,9 +129,22 @@ export default function CraftProcessesPage() {
     }
   };
 
+  const fetchSuppliers = async () => {
+    try {
+      const response = await fetch('/api/suppliers?pageSize=100');
+      const result = await response.json();
+      if (result.success) {
+        setSuppliers(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch suppliers:', error);
+    }
+  };
+
   useEffect(() => {
     fetchProcesses();
     fetchProductionOrders();
+    fetchSuppliers();
   }, [statusFilter, typeFilter]);
 
   const handleSubmit = async () => {
@@ -154,6 +169,7 @@ export default function CraftProcessesPage() {
           process_type: 'printing',
           quantity: '',
           unit_price: '',
+          supplier_id: '',
           notes: '',
         });
         fetchProcesses();
@@ -424,6 +440,24 @@ export default function CraftProcessesPage() {
                   onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>加工供应商</Label>
+              <Select 
+                value={formData.supplier_id} 
+                onValueChange={(v) => setFormData({ ...formData, supplier_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择供应商（可选）" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map(supplier => (
+                    <SelectItem key={supplier.id} value={supplier.id}>
+                      {supplier.name} ({supplier.supplier_level === 1 ? '一级' : supplier.supplier_level === 2 ? '二级' : '三级'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

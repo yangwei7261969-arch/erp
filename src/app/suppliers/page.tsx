@@ -62,7 +62,7 @@ interface Supplier {
   short_name: string | null;
   type: string | null;
   category: string | null;
-  level: number;
+  supplier_level: number;
   contact: string;
   phone: string;
   email: string | null;
@@ -102,7 +102,7 @@ export default function SuppliersPage() {
     short_name: '',
     type: '',
     category: '',
-    level: 1,
+    supplier_level: 1,
     contact: '',
     phone: '',
     email: '',
@@ -168,7 +168,7 @@ export default function SuppliersPage() {
         short_name: supplier.short_name || '',
         type: supplier.type || '',
         category: supplier.category || '',
-        level: supplier.level || 1,
+        supplier_level: supplier.supplier_level || 1,
         contact: supplier.contact || '',
         phone: supplier.phone || '',
         email: supplier.email || '',
@@ -189,7 +189,7 @@ export default function SuppliersPage() {
         short_name: '',
         type: '',
         category: '',
-        level: 1,
+        supplier_level: 1,
         contact: '',
         phone: '',
         email: '',
@@ -464,10 +464,10 @@ export default function SuppliersPage() {
                         <TableCell className="font-medium">{supplier.name}</TableCell>
                         <TableCell>{getTypeBadge(supplier.type)}</TableCell>
                         <TableCell>
-                          <Badge className={supplier.level === 1 ? 'bg-yellow-100 text-yellow-800' : 
-                                           supplier.level === 2 ? 'bg-gray-100 text-gray-800' : 
+                          <Badge className={supplier.supplier_level === 1 ? 'bg-yellow-100 text-yellow-800' : 
+                                           supplier.supplier_level === 2 ? 'bg-gray-100 text-gray-800' : 
                                            'bg-orange-100 text-orange-800'}>
-                            {supplier.level || 1}级
+                            {supplier.supplier_level || 1}级
                           </Badge>
                         </TableCell>
                         <TableCell>{supplier.contact}</TableCell>
@@ -582,7 +582,7 @@ export default function SuppliersPage() {
             </div>
             <div className="space-y-2">
               <Label>供应商等级</Label>
-              <Select value={form.level?.toString() || '1'} onValueChange={(v) => setForm({ ...form, level: parseInt(v) })}>
+              <Select value={form.supplier_level?.toString() || '1'} onValueChange={(v) => setForm({ ...form, supplier_level: parseInt(v) })}>
                 <SelectTrigger>
                   <SelectValue placeholder="选择等级" />
                 </SelectTrigger>
@@ -723,10 +723,10 @@ export default function SuppliersPage() {
                 </div>
                 <div>
                   <span className="text-gray-500">等级：</span>
-                  <Badge className={selectedSupplier.level === 1 ? 'bg-yellow-100 text-yellow-800 ml-1' : 
-                                   selectedSupplier.level === 2 ? 'bg-gray-100 text-gray-800 ml-1' : 
+                  <Badge className={selectedSupplier.supplier_level === 1 ? 'bg-yellow-100 text-yellow-800 ml-1' : 
+                                   selectedSupplier.supplier_level === 2 ? 'bg-gray-100 text-gray-800 ml-1' : 
                                    'bg-orange-100 text-orange-800 ml-1'}>
-                    {selectedSupplier.level || 1}级
+                    {selectedSupplier.supplier_level || 1}级
                   </Badge>
                 </div>
                 <div>

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-// 获取二次工艺列表
+// 获取裁片外发列表
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const productionOrderId = searchParams.get('productionOrderId');
+    const supplierId = searchParams.get('supplierId');
     const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
@@ -13,12 +14,16 @@ export async function GET(request: NextRequest) {
     const client = getSupabaseClient();
     
     let query = client
-      .from('craft_processes')
+      .from('cut_piece_outsources')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
     if (productionOrderId) {
       query = query.eq('production_order_id', productionOrderId);
+    }
+
+    if (supplierId) {
+      query = query.eq('supplier_id', supplierId);
     }
 
     if (status && status !== 'all') {
@@ -32,9 +37,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 获取生产订单和供应商信息
+    // 获取关联信息
     let orders: Record<string, any> = {};
     let suppliers: Record<string, any> = {};
+    
     if (data && data.length > 0) {
       const orderIds = [...new Set(data.map(c => c.production_order_id).filter(Boolean))];
       const supplierIds = [...new Set(data.map(c => c.supplier_id).filter(Boolean))];
@@ -80,27 +86,26 @@ export async function GET(request: NextRequest) {
       pageSize,
     });
   } catch (error) {
-    console.error('Get craft processes error:', error);
+    console.error('Get cut piece outsource error:', error);
     return NextResponse.json({ error: '获取数据失败' }, { status: 500 });
   }
 }
 
-// 创建二次工艺
+// 创建裁片外发记录
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const client = getSupabaseClient();
 
     const { data, error } = await client
-      .from('craft_processes')
+      .from('cut_piece_outsources')
       .insert({
         production_order_id: body.production_order_id,
-        process_name: body.process_name,
-        process_type: body.process_type,
+        piece_name: body.piece_name,
         quantity: body.quantity,
-        unit_price: body.unit_price,
-        total_cost: body.quantity * body.unit_price,
         supplier_id: body.supplier_id,
+        out_date: body.out_date,
+        expected_return_date: body.expected_return_date,
         status: 'pending',
         notes: body.notes,
       })
@@ -113,27 +118,26 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error('Create craft process error:', error);
+    console.error('Create cut piece outsource error:', error);
     return NextResponse.json({ error: '创建失败' }, { status: 500 });
   }
 }
 
-// 更新二次工艺状态
+// 更新裁片外发记录
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, completed_qty } = body;
     const client = getSupabaseClient();
 
-    const updateData: any = { status };
-    if (completed_qty !== undefined) {
-      updateData.completed_qty = completed_qty;
-    }
+    const updateData: Record<string, any> = {};
+    if (body.status) updateData.status = body.status;
+    if (body.actual_return_date) updateData.actual_return_date = body.actual_return_date;
+    if (body.notes) updateData.notes = body.notes;
 
     const { data, error } = await client
-      .from('craft_processes')
+      .from('cut_piece_outsources')
       .update(updateData)
-      .eq('id', id)
+      .eq('id', body.id)
       .select()
       .single();
 
@@ -143,7 +147,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error('Update craft process error:', error);
+    console.error('Update cut piece outsource error:', error);
     return NextResponse.json({ error: '更新失败' }, { status: 500 });
   }
 }
