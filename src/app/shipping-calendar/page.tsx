@@ -77,6 +77,11 @@ interface DayData {
 
 const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
+// 日期格式化函数（提前定义，避免hoisting问题）
+const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
 export default function ShippingCalendarPage() {
   const [calendar, setCalendar] = useState<Record<string, DayData>>({});
   const [reminders, setReminders] = useState<{
@@ -128,10 +133,6 @@ export default function ShippingCalendarPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0];
   };
 
   const getWeekDates = () => {
