@@ -297,16 +297,24 @@ const menuGroups: MenuGroup[] = [
 
 interface SidebarProps {
   className?: string;
+  onMobileClose?: () => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+
+  const handleItemClick = () => {
+    // 移动端点击菜单项后关闭侧边栏
+    if (onMobileClose) {
+      onMobileClose();
+    }
+  };
 
   return (
     <div
       className={cn(
-        'relative flex flex-col border-r bg-background transition-all duration-300',
+        'relative flex flex-col border-r bg-background transition-all duration-300 h-full',
         collapsed ? 'w-16' : 'w-64',
         className
       )}
@@ -323,13 +331,22 @@ export function Sidebar({ className }: SidebarProps) {
           variant="ghost"
           size="icon"
           onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8"
+          className="h-8 w-8 hidden md:flex"
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4" />
           ) : (
             <ChevronLeft className="h-4 w-4" />
           )}
+        </Button>
+        {/* 移动端关闭按钮 */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMobileClose}
+          className="h-8 w-8 md:hidden"
+        >
+          <ChevronLeft className="h-4 w-4" />
         </Button>
       </div>
 
@@ -350,7 +367,7 @@ export function Sidebar({ className }: SidebarProps) {
                 {group.items.map((item) => {
                   const isActive = pathname === item.href;
                   return (
-                    <Link key={item.href} href={item.href}>
+                    <Link key={item.href} href={item.href} onClick={handleItemClick}>
                       <Button
                         variant={isActive ? 'secondary' : 'ghost'}
                         className={cn(
