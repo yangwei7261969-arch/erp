@@ -40,6 +40,10 @@ import {
   Warehouse,
   Users2,
   LucideIcon,
+  Activity,
+  Ticket,
+  AlertTriangle,
+  BarChart3,
 } from 'lucide-react';
 
 // 菜单分组结构
@@ -69,6 +73,18 @@ const menuGroups: MenuGroup[] = [
         icon: LayoutDashboard,
         href: '/',
         roles: ['boss', 'manager'],
+      },
+      {
+        title: 'MES实时看板',
+        icon: Activity,
+        href: '/mes-dashboard',
+        roles: ['boss', 'manager', 'production_manager'],
+      },
+      {
+        title: '预警系统',
+        icon: AlertTriangle,
+        href: '/alert-system',
+        roles: ['boss', 'manager', 'production_manager'],
       },
     ],
   },
@@ -101,6 +117,12 @@ const menuGroups: MenuGroup[] = [
         icon: Layers,
         href: '/cutting-bundles',
         roles: ['cutting_manager'],
+      },
+      {
+        title: '条码工票',
+        icon: Ticket,
+        href: '/work-tickets',
+        roles: ['worker', 'production_manager'],
       },
       {
         title: '工序扫码',
@@ -148,6 +170,34 @@ const menuGroups: MenuGroup[] = [
       },
     ],
   },
+  // 质量管理
+  {
+    title: '质量管理',
+    icon: ClipboardCheck,
+    defaultOpen: false,
+    items: [
+      {
+        title: '质量管理',
+        icon: ClipboardCheck,
+        href: '/quality-management',
+        roles: ['production_manager', 'quality', 'boss'],
+      },
+    ],
+  },
+  // 成本核算
+  {
+    title: '成本核算',
+    icon: Calculator,
+    defaultOpen: false,
+    items: [
+      {
+        title: '成本分析',
+        icon: BarChart3,
+        href: '/cost-analysis',
+        roles: ['finance', 'boss', 'manager'],
+      },
+    ],
+  },
   // 库存管理
   {
     title: '库存管理',
@@ -165,6 +215,12 @@ const menuGroups: MenuGroup[] = [
         icon: Box,
         href: '/finished-inventory',
         roles: ['warehouse', 'manager'],
+      },
+      {
+        title: '装箱管理',
+        icon: Package,
+        href: '/packing-management',
+        roles: ['warehouse', 'boss'],
       },
     ],
   },
@@ -217,6 +273,12 @@ const menuGroups: MenuGroup[] = [
         icon: Building2,
         href: '/suppliers',
         roles: ['boss', 'manager'],
+      },
+      {
+        title: '供应商付款',
+        icon: DollarSign,
+        href: '/supplier-payment',
+        roles: ['finance', 'boss'],
       },
     ],
   },
