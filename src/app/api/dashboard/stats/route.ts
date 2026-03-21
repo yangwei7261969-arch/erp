@@ -144,6 +144,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
+        // 前端看板需要的格式
+        totalOrders: orderStats.total,
+        completedOrders: orderStats.completed,
+        inProgressOrders: orderStats.in_progress,
+        pendingOrders: orderStats.pending,
+        todayOutput: progressStats.completed_quantity,
+        weekOutput: progressStats.completed_quantity,
+        defectRate: 1.2, // TODO: 计算实际次品率
+        onTimeRate: orderStats.total > 0 
+          ? Math.round((orderStats.completed / orderStats.total) * 100) 
+          : 0,
+        // 详细统计
         orderStats,
         progressStats,
         outsourceStats,
