@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,7 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Box,
   Cog,
   Calculator,
@@ -53,6 +54,7 @@ interface MenuGroup {
   title: string;
   icon: LucideIcon;
   items: MenuItem[];
+  defaultOpen?: boolean;
 }
 
 const menuGroups: MenuGroup[] = [
@@ -60,6 +62,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: '数据概览',
     icon: LayoutDashboard,
+    defaultOpen: true,
     items: [
       {
         title: '数据大屏',
@@ -73,6 +76,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: '生产管理',
     icon: Factory,
+    defaultOpen: true,
     items: [
       {
         title: '生产订单',
@@ -128,6 +132,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: '工序配置',
     icon: Cog,
+    defaultOpen: false,
     items: [
       {
         title: '工序管理',
@@ -147,6 +152,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: '库存管理',
     icon: Warehouse,
+    defaultOpen: true,
     items: [
       {
         title: '物料库存',
@@ -166,6 +172,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: '出货管理',
     icon: Truck,
+    defaultOpen: true,
     items: [
       {
         title: '出货日历',
@@ -191,6 +198,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: '外发管理',
     icon: Send,
+    defaultOpen: false,
     items: [
       {
         title: '外发订单',
@@ -210,6 +218,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: '人事工资',
     icon: Users,
+    defaultOpen: false,
     items: [
       {
         title: '员工管理',
@@ -235,6 +244,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: '财务客户',
     icon: DollarSign,
+    defaultOpen: false,
     items: [
       {
         title: '财务中心',
@@ -260,6 +270,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: '系统工具',
     icon: Settings,
+    defaultOpen: false,
     items: [
       {
         title: 'AI 助手',
@@ -303,6 +314,39 @@ interface SidebarProps {
 export function Sidebar({ className, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+
+  // 分组展开状态
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    menuGroups.forEach((group) => {
+      if (group.defaultOpen) {
+        initial.add(group.title);
+      }
+    });
+    return initial;
+  });
+
+  // 当路由变化时，自动展开包含当前页面的分组
+  useEffect(() => {
+    menuGroups.forEach((group) => {
+      const hasActiveItem = group.items.some((item) => item.href === pathname);
+      if (hasActiveItem && !expandedGroups.has(group.title)) {
+        setExpandedGroups((prev) => new Set([...prev, group.title]));
+      }
+    });
+  }, [pathname]);
+
+  const toggleGroup = (title: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) {
+        next.delete(title);
+      } else {
+        next.add(title);
+      }
+      return next;
+    });
+  };
 
   const handleItemClick = () => {
     // 移动端点击菜单项后关闭侧边栏
@@ -353,38 +397,93 @@ export function Sidebar({ className, onMobileClose }: SidebarProps) {
       {/* Menu with Groups */}
       <ScrollArea className="flex-1 py-2">
         <nav className="px-2">
-          {menuGroups.map((group) => (
-            <div key={group.title} className="mb-2">
-              {/* Group Title */}
-              {!collapsed && (
-                <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  <group.icon className="h-3.5 w-3.5" />
-                  {group.title}
-                </div>
-              )}
-              {/* Group Items */}
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const isActive = pathname === item.href;
-                  return (
-                    <Link key={item.href} href={item.href} onClick={handleItemClick}>
-                      <Button
-                        variant={isActive ? 'secondary' : 'ghost'}
+          {menuGroups.map((group) => {
+            const isExpanded = expandedGroups.has(group.title);
+            const hasActiveItem = group.items.some((item) => item.href === pathname);
+
+            return (
+              <div key={group.title} className="mb-1">
+                {/* Group Title - 可点击展开/收起 */}
+                <button
+                  onClick={() => !collapsed && toggleGroup(group.title)}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-2 text-xs font-medium uppercase tracking-wider rounded-md transition-colors',
+                    collapsed
+                      ? 'justify-center cursor-default'
+                      : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800',
+                    hasActiveItem && !collapsed
+                      ? 'text-primary bg-primary/5'
+                      : 'text-muted-foreground'
+                  )}
+                  title={collapsed ? group.title : undefined}
+                >
+                  <group.icon className="h-4 w-4 flex-shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 text-left">{group.title}</span>
+                      <ChevronDown
                         className={cn(
-                          'w-full justify-start gap-3 h-9',
-                          collapsed && 'justify-center px-0'
+                          'h-4 w-4 transition-transform duration-200',
+                          isExpanded && 'rotate-180'
                         )}
-                        title={collapsed ? item.title : undefined}
-                      >
-                        <item.icon className="h-4 w-4 flex-shrink-0" />
-                        {!collapsed && <span className="text-sm">{item.title}</span>}
-                      </Button>
-                    </Link>
-                  );
-                })}
+                      />
+                    </>
+                  )}
+                </button>
+
+                {/* Group Items - 带动画展开 */}
+                {!collapsed && (
+                  <div
+                    className={cn(
+                      'overflow-hidden transition-all duration-200 ease-in-out',
+                      isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                    )}
+                  >
+                    <div className="space-y-0.5 py-1 pl-2">
+                      {group.items.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                          <Link key={item.href} href={item.href} onClick={handleItemClick}>
+                            <Button
+                              variant={isActive ? 'secondary' : 'ghost'}
+                              className={cn(
+                                'w-full justify-start gap-3 h-8 text-sm',
+                                isActive && 'font-medium'
+                              )}
+                            >
+                              <item.icon className="h-4 w-4 flex-shrink-0" />
+                              <span>{item.title}</span>
+                            </Button>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 收起状态：直接显示图标按钮 */}
+                {collapsed && (
+                  <div className="space-y-0.5 mt-1">
+                    {group.items.map((item) => {
+                      const isActive = pathname === item.href;
+                      return (
+                        <Link key={item.href} href={item.href} onClick={handleItemClick}>
+                          <Button
+                            variant={isActive ? 'secondary' : 'ghost'}
+                            size="icon"
+                            className={cn('w-full h-9', isActive && 'bg-primary/10')}
+                            title={item.title}
+                          >
+                            <item.icon className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
       </ScrollArea>
 
