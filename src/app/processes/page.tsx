@@ -39,6 +39,7 @@ import {
   Plus,
   Loader2,
   Edit,
+  Trash2,
   DollarSign,
   Clock,
 } from 'lucide-react';
@@ -163,6 +164,25 @@ export default function ProcessesPage() {
     setDialogOpen(true);
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定要删除此工序吗？此操作不可恢复。')) return;
+    
+    try {
+      const response = await fetch(`/api/processes?id=${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        fetchProcesses();
+      } else {
+        alert(result.error || '删除失败');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('删除失败');
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -261,9 +281,18 @@ export default function ProcessesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button size="sm" variant="ghost" onClick={() => handleEdit(process)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(process)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => handleDelete(process.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

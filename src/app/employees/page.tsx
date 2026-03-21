@@ -38,6 +38,7 @@ import {
   Search,
   Plus,
   Edit,
+  Trash2,
   Loader2,
 } from 'lucide-react';
 
@@ -118,6 +119,25 @@ export default function EmployeesPage() {
       console.error('Submit error:', error);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定要删除此员工吗？此操作不可恢复。')) return;
+    
+    try {
+      const response = await fetch(`/api/employees?id=${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        fetchEmployees();
+      } else {
+        alert(result.error || '删除失败');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('删除失败');
     }
   };
 
@@ -227,6 +247,7 @@ export default function EmployeesPage() {
                   <TableHead>电话</TableHead>
                   <TableHead>状态</TableHead>
                   <TableHead>入职日期</TableHead>
+                  <TableHead className="text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -243,6 +264,15 @@ export default function EmployeesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{employee.join_date || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        onClick={() => handleDelete(employee.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

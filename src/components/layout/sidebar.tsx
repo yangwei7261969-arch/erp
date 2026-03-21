@@ -28,6 +28,9 @@ import {
   Calculator,
   Palette,
   ClipboardList,
+  QrCode,
+  GitBranch,
+  Layers,
 } from 'lucide-react';
 
 const menuItems = [
@@ -48,6 +51,24 @@ const menuItems = [
     icon: Scissors,
     href: '/cutting',
     roles: ['cutting_manager'],
+  },
+  {
+    title: '裁床分扎',
+    icon: Layers,
+    href: '/cutting-bundles',
+    roles: ['cutting_manager'],
+  },
+  {
+    title: '工序扫码',
+    icon: QrCode,
+    href: '/process-scan',
+    roles: ['worker', 'production_manager'],
+  },
+  {
+    title: '工序追溯',
+    icon: GitBranch,
+    href: '/process-tracking',
+    roles: ['production_manager', 'boss'],
   },
   {
     title: '工序管理',
@@ -94,7 +115,7 @@ const menuItems = [
   {
     title: '人事管理',
     icon: Users,
-    href: '/hr',
+    href: '/employees',
     roles: ['hr', 'boss'],
   },
   {

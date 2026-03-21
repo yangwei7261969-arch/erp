@@ -646,3 +646,41 @@ export const users = pgTable("users", {
 	index("users_status_idx").using("btree", table.status.asc().nullsLast().op("text_ops")),
 	unique("users_email_unique").on(table.email),
 ]);
+
+// 裁床分扎表
+export const cuttingBundles = pgTable("cutting_bundles", {
+	id: varchar({ length: 36 }).default(genRandomUUID()).primaryKey().notNull(),
+	cuttingOrderId: varchar("cutting_order_id", { length: 36 }),
+	bundleNo: varchar("bundle_no", { length: 50 }).notNull(),
+	size: varchar({ length: 50 }).notNull(),
+	color: varchar({ length: 50 }).notNull(),
+	quantity: integer().notNull(),
+	status: varchar({ length: 20 }).default('pending').notNull(),
+	qrCode: varchar("qr_code", { length: 100 }),
+	currentProcessId: varchar("current_process_id", { length: 36 }),
+	notes: text(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("cutting_bundles_order_idx").using("btree", table.cuttingOrderId.asc().nullsLast().op("text_ops")),
+	index("cutting_bundles_bundle_no_idx").using("btree", table.bundleNo.asc().nullsLast().op("text_ops")),
+	unique("cutting_bundles_bundle_no_unique").on(table.bundleNo),
+]);
+
+// 工序追溯表
+export const processTracking = pgTable("process_tracking", {
+	id: varchar({ length: 36 }).default(genRandomUUID()).primaryKey().notNull(),
+	bundleId: varchar("bundle_id", { length: 36 }).notNull(),
+	processId: varchar("process_id", { length: 36 }).notNull(),
+	workerId: varchar("worker_id", { length: 36 }).notNull(),
+	quantity: integer().notNull(),
+	wage: numeric({ precision: 10, scale: 2 }).notNull(),
+	status: varchar({ length: 20 }).default('completed').notNull(),
+	notes: text(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("process_tracking_bundle_idx").using("btree", table.bundleId.asc().nullsLast().op("text_ops")),
+	index("process_tracking_process_idx").using("btree", table.processId.asc().nullsLast().op("text_ops")),
+	index("process_tracking_worker_idx").using("btree", table.workerId.asc().nullsLast().op("text_ops")),
+	index("process_tracking_created_idx").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
+]);
