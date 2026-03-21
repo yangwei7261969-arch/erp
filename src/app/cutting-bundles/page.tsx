@@ -76,7 +76,7 @@ export default function CuttingBundlesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
+  const [selectedOrderId, setSelectedOrderId] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState<CuttingBundle | null>(null);
@@ -104,7 +104,9 @@ export default function CuttingBundlesPage() {
     setLoading(true);
     try {
       let url = '/api/cutting-bundles?';
-      if (selectedOrderId) url += `cutting_order_id=${selectedOrderId}&`;
+      if (selectedOrderId && selectedOrderId !== 'all') {
+        url += `cutting_order_id=${selectedOrderId}&`;
+      }
       
       const res = await fetch(url);
       const data = await res.json();
@@ -390,7 +392,7 @@ export default function CuttingBundlesPage() {
                 <SelectValue placeholder="选择裁床单" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部裁床单</SelectItem>
+                <SelectItem value="all">全部裁床单</SelectItem>
                 {cuttingOrders.map(order => (
                   <SelectItem key={order.id} value={order.id}>
                     {order.order_no} - {order.style_no}

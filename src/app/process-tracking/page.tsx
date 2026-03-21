@@ -85,8 +85,8 @@ export default function ProcessTrackingPage() {
 
   // 筛选条件
   const [bundleNo, setBundleNo] = useState('');
-  const [workerId, setWorkerId] = useState('');
-  const [processId, setProcessId] = useState('');
+  const [workerId, setWorkerId] = useState('all');
+  const [processId, setProcessId] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -134,8 +134,8 @@ export default function ProcessTrackingPage() {
     setLoading(true);
     try {
       let url = `/api/process-tracking?page=${page}&pageSize=${pageSize}`;
-      if (workerId) url += `&worker_id=${workerId}`;
-      if (processId) url += `&process_id=${processId}`;
+      if (workerId && workerId !== 'all') url += `&worker_id=${workerId}`;
+      if (processId && processId !== 'all') url += `&process_id=${processId}`;
       if (startDate) url += `&start_date=${startDate}`;
       if (endDate) url += `&end_date=${endDate}`;
       
@@ -308,7 +308,7 @@ export default function ProcessTrackingPage() {
                   <SelectValue placeholder="全部员工" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部员工</SelectItem>
+                  <SelectItem value="all">全部员工</SelectItem>
                   {employees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id}>
                       {emp.employee_no} - {emp.name}
@@ -325,7 +325,7 @@ export default function ProcessTrackingPage() {
                   <SelectValue placeholder="全部工序" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部工序</SelectItem>
+                  <SelectItem value="all">全部工序</SelectItem>
                   {processes.map(proc => (
                     <SelectItem key={proc.id} value={proc.id}>
                       {proc.code} - {proc.name}
