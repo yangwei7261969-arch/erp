@@ -196,6 +196,13 @@ const menuItems = [
     roles: ['admin'],
   },
   {
+    title: '后台管理',
+    icon: Shield,
+    href: '/admin',
+    roles: ['admin'],
+    isSeparator: true,
+  },
+  {
     title: '供应商登录',
     icon: LogIn,
     href: '/login',
