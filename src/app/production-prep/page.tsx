@@ -112,11 +112,10 @@ export default function ProductionPrepPage() {
 
     try {
       // 更新订单状态为生产准备中
-      const response = await fetch('/api/production-orders', {
+      const response = await fetch(`/api/production-orders/${selectedOrder.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: selectedOrder.id,
           status: 'preparing',
         }),
       });
@@ -136,11 +135,10 @@ export default function ProductionPrepPage() {
     if (!confirm('确认开始生产？')) return;
 
     try {
-      const response = await fetch('/api/production-orders', {
+      const response = await fetch(`/api/production-orders/${orderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: orderId,
           status: 'in_production',
           actual_start_date: new Date().toISOString().split('T')[0],
         }),
