@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       if (supplierIds.length > 0) {
         const { data: supplierData } = await client
           .from('suppliers')
-          .select('id, name, level, contact_person, phone')
+          .select('id, name, supplier_level, contact_person, phone')
           .in('id', supplierIds);
           
         if (supplierData) {
@@ -129,8 +129,32 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const client = getSupabaseClient();
 
+    // 先获取当前记录
+    const { data: currentRecord } = await client
+      .from('cut_piece_outsources')
+      .select('status')
+      .eq('id', body.id)
+      .single();
+
     const updateData: Record<string, any> = {};
-    if (body.status) updateData.status = body.status;
+    
+    if (body.status) {
+      updateData.status = body.status;
+      
+      // 状态变更时自动记录时间
+      if (body.status === 'in_transit' && currentRecord?.status === 'pending') {
+        // 发料，记录开始时间
+        updateData.start_time = new Date().toISOString();
+        updateData.out_date = new Date().toISOString().split('T')[0];
+      } else if (body.status === 'processing' && currentRecord?.status === 'in_transit') {
+        // 开始加工
+      } else if (body.status === 'completed' && ['in_transit', 'processing'].includes(currentRecord?.status || '')) {
+        // 完成，记录结束时间
+        updateData.end_time = new Date().toISOString();
+        updateData.actual_return_date = new Date().toISOString().split('T')[0];
+      }
+    }
+    
     if (body.actual_return_date) updateData.actual_return_date = body.actual_return_date;
     if (body.notes) updateData.notes = body.notes;
 

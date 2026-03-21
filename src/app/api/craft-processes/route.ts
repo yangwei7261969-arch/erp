@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       if (supplierIds.length > 0) {
         const { data: supplierData } = await client
           .from('suppliers')
-          .select('id, name, level, contact_person, phone')
+          .select('id, name, supplier_level, contact_person, phone')
           .in('id', supplierIds);
           
         if (supplierData) {
@@ -125,7 +125,30 @@ export async function PUT(request: NextRequest) {
     const { id, status, completed_qty } = body;
     const client = getSupabaseClient();
 
-    const updateData: any = { status };
+    // 先获取当前记录
+    const { data: currentRecord } = await client
+      .from('craft_processes')
+      .select('status')
+      .eq('id', id)
+      .single();
+
+    const updateData: any = {};
+    
+    if (status) {
+      updateData.status = status;
+      
+      // 状态变更时自动记录时间
+      if (status === 'in_progress' && currentRecord?.status === 'pending') {
+        // 开始加工，记录开始时间
+        updateData.start_time = new Date().toISOString();
+        updateData.start_date = new Date().toISOString().split('T')[0];
+      } else if (status === 'completed' && currentRecord?.status === 'in_progress') {
+        // 完成加工，记录结束时间
+        updateData.end_time = new Date().toISOString();
+        updateData.end_date = new Date().toISOString().split('T')[0];
+      }
+    }
+    
     if (completed_qty !== undefined) {
       updateData.completed_qty = completed_qty;
     }

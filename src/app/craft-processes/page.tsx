@@ -54,6 +54,8 @@ interface CraftProcess {
   unit_price: number;
   total_cost: number;
   status: string;
+  start_time?: string;
+  end_time?: string;
   production_orders?: {
     order_no: string;
     style_no: string;
@@ -313,6 +315,8 @@ export default function CraftProcessesPage() {
                   <TableHead>数量</TableHead>
                   <TableHead>单价</TableHead>
                   <TableHead>总成本</TableHead>
+                  <TableHead>开始时间</TableHead>
+                  <TableHead>结束时间</TableHead>
                   <TableHead>状态</TableHead>
                   <TableHead>操作</TableHead>
                 </TableRow>
@@ -338,6 +342,22 @@ export default function CraftProcessesPage() {
                     <TableCell>{process.quantity}</TableCell>
                     <TableCell>¥{Number(process.unit_price).toFixed(2)}</TableCell>
                     <TableCell className="font-medium">¥{Number(process.total_cost).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {process.start_time ? new Date(process.start_time).toLocaleString('zh-CN', { 
+                        month: '2-digit', 
+                        day: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      }) : '-'}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {process.end_time ? new Date(process.end_time).toLocaleString('zh-CN', { 
+                        month: '2-digit', 
+                        day: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      }) : '-'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={statusConfig[process.status]?.variant || 'outline'}>
                         {statusConfig[process.status]?.label || process.status}

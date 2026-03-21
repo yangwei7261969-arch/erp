@@ -35,8 +35,10 @@ interface OutsourceRecord {
   item_name: string;
   quantity: number;
   supplier_name: string;
-  supplier_level: string;
+  supplier_level: string | number;
   out_date: string;
+  start_time?: string;
+  end_time?: string;
   expected_return_date?: string;
   actual_return_date?: string;
   status: string;
@@ -93,8 +95,10 @@ export default function OutsourceTrackingPage() {
     item_name: item.piece_name || '裁片',
     quantity: item.quantity,
     supplier_name: item.suppliers?.name || '-',
-    supplier_level: item.suppliers?.level || '-',
+    supplier_level: item.suppliers?.supplier_level || item.suppliers?.level || '-',
     out_date: item.out_date || item.created_at,
+    start_time: item.start_time,
+    end_time: item.end_time,
     expected_return_date: item.expected_return_date,
     actual_return_date: item.actual_return_date,
     status: item.status,
@@ -112,8 +116,10 @@ export default function OutsourceTrackingPage() {
       item_name: item.process_name || '工艺',
       quantity: item.quantity,
       supplier_name: item.suppliers?.name || '-',
-      supplier_level: item.suppliers?.level || '-',
+      supplier_level: item.suppliers?.supplier_level || item.suppliers?.level || '-',
       out_date: item.created_at,
+      start_time: item.start_time,
+      end_time: item.end_time,
       status: item.status === 'completed' ? 'completed' : item.status === 'in_progress' ? 'processing' : 'pending',
       notes: item.notes,
     }));
@@ -234,8 +240,8 @@ export default function OutsourceTrackingPage() {
                       <TableHead>数量</TableHead>
                       <TableHead>供应商</TableHead>
                       <TableHead>供应商等级</TableHead>
-                      <TableHead>发料日期</TableHead>
-                      <TableHead>预计回料</TableHead>
+                      <TableHead>开始时间</TableHead>
+                      <TableHead>结束时间</TableHead>
                       <TableHead>状态</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -257,8 +263,22 @@ export default function OutsourceTrackingPage() {
                             {getSupplierLevelLabel(record.supplier_level)}
                           </Badge>
                         </TableCell>
-                        <TableCell>{record.out_date ? new Date(record.out_date).toLocaleDateString() : '-'}</TableCell>
-                        <TableCell>{record.expected_return_date ? new Date(record.expected_return_date).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {record.start_time ? new Date(record.start_time).toLocaleString('zh-CN', { 
+                            month: '2-digit', 
+                            day: '2-digit', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          }) : '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {record.end_time ? new Date(record.end_time).toLocaleString('zh-CN', { 
+                            month: '2-digit', 
+                            day: '2-digit', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          }) : '-'}
+                        </TableCell>
                         <TableCell>
                           <Badge variant={statusConfig[record.status]?.variant || 'outline'}>
                             <span className="flex items-center gap-1">

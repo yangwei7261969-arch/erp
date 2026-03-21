@@ -141,6 +141,7 @@ export async function POST(request: NextRequest) {
     const wage = completedQty * Number(process.unit_price);
 
     // 创建工序记录
+    const now = new Date().toISOString();
     const { data, error } = await client
       .from('process_tracking')
       .insert({
@@ -150,6 +151,8 @@ export async function POST(request: NextRequest) {
         quantity: completedQty,
         wage,
         status: 'completed',
+        start_time: now,
+        end_time: now,
         notes,
       })
       .select()
