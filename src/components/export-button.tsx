@@ -22,6 +22,8 @@ interface ExportButtonProps {
   variant?: 'default' | 'outline' | 'secondary';
   size?: 'default' | 'sm' | 'lg';
   className?: string;
+  buttonText?: string;
+  filters?: Record<string, string | number>;
 }
 
 const DATA_TYPE_OPTIONS = [
@@ -32,13 +34,18 @@ const DATA_TYPE_OPTIONS = [
   { value: 'suppliers', label: '供应商' },
   { value: 'inventory', label: '库存明细' },
   { value: 'employees', label: '员工列表' },
+  { value: 'salaries', label: '工资明细' },
+  { value: 'order_details', label: '订单明细' },
+  { value: 'finance_summary', label: '财务明细' },
 ];
 
 export function ExportButton({ 
   dataType, 
   variant = 'outline',
   size = 'default',
-  className = ''
+  className = '',
+  buttonText,
+  filters,
 }: ExportButtonProps) {
   const [loading, setLoading] = useState(false);
 
@@ -48,7 +55,7 @@ export function ExportButton({
       const response = await fetch('/api/export/excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataType }),
+        body: JSON.stringify({ dataType, filters }),
       });
 
       if (!response.ok) {
@@ -84,7 +91,7 @@ export function ExportButton({
       ) : (
         <Download className="h-4 w-4 mr-2" />
       )}
-      导出Excel
+      {buttonText || '导出Excel'}
     </Button>
   );
 }

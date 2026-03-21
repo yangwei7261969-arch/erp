@@ -124,6 +124,17 @@ export default function CuttingBundlesPage() {
   // 选中的裁床单
   const [selectedCuttingOrder, setSelectedCuttingOrder] = useState<CuttingOrder | null>(null);
   
+  // 新建裁床单模式
+  const [createNewCuttingOrder, setCreateNewCuttingOrder] = useState(false);
+  const [newCuttingOrderForm, setNewCuttingOrderForm] = useState({
+    style_no: '',
+    color: '',
+    quantity: 0,
+    size_breakdown: '',
+    cutting_date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+  
   // 分扎数据 - 每个尺码单独配置
   const [bundleConfig, setBundleConfig] = useState<{
     size: string;
@@ -216,6 +227,7 @@ export default function CuttingBundlesPage() {
     if (!order) return;
     
     setSelectedCuttingOrder(order);
+    setCreateNewCuttingOrder(false);
     
     // 根据尺码明细初始化分扎配置
     const sizeBreakdown = order.size_breakdown || { 'M': order.quantity };
@@ -226,6 +238,35 @@ export default function CuttingBundlesPage() {
       orderQty: qty as number,
       piecesPerBundle: 50,  // 默认每扎50件
       bundleCount: Math.ceil((qty as number) / 50),
+    }));
+    
+    setBundleConfig(config);
+  };
+
+  // 初始化新裁床单的分扎配置
+  const initNewCuttingOrderBundles = () => {
+    // 解析尺码明细 (格式: "S:100,M:200,L:150")
+    const sizeBreakdown: Record<string, number> = {};
+    if (newCuttingOrderForm.size_breakdown) {
+      newCuttingOrderForm.size_breakdown.split(',').forEach(item => {
+        const [size, qty] = item.trim().split(':');
+        if (size && qty) {
+          sizeBreakdown[size.trim()] = parseInt(qty.trim()) || 0;
+        }
+      });
+    }
+    
+    // 如果没有填写尺码明细，使用总数量
+    if (Object.keys(sizeBreakdown).length === 0 && newCuttingOrderForm.quantity > 0) {
+      sizeBreakdown['均码'] = newCuttingOrderForm.quantity;
+    }
+    
+    const config = Object.entries(sizeBreakdown).map(([size, qty]) => ({
+      size,
+      color: newCuttingOrderForm.color,
+      orderQty: qty,
+      piecesPerBundle: 50,
+      bundleCount: Math.ceil(qty / 50),
     }));
     
     setBundleConfig(config);
@@ -253,6 +294,84 @@ export default function CuttingBundlesPage() {
   };
 
   const handleCreateBundles = async () => {
+    // 如果是新建裁床单模式
+    if (createNewCuttingOrder) {
+      if (!newCuttingOrderForm.style_no || !newCuttingOrderForm.color || !newCuttingOrderForm.quantity) {
+        alert('请填写完整的裁床单信息');
+        return;
+      }
+      
+      try {
+        // 1. 先创建裁床单
+        const cuttingOrderRes = await fetch('/api/cutting-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            style_no: newCuttingOrderForm.style_no,
+            color: newCuttingOrderForm.color,
+            cutting_qty: newCuttingOrderForm.quantity,
+            size_breakdown: newCuttingOrderForm.size_breakdown 
+              ? Object.fromEntries(newCuttingOrderForm.size_breakdown.split(',').map(item => {
+                  const [size, qty] = item.trim().split(':');
+                  return [size.trim(), parseInt(qty.trim()) || 0];
+                }))
+              : { '均码': newCuttingOrderForm.quantity },
+            cutting_date: newCuttingOrderForm.cutting_date,
+            notes: newCuttingOrderForm.notes,
+          }),
+        });
+        
+        const cuttingOrderData = await cuttingOrderRes.json();
+        if (!cuttingOrderData.success) {
+          alert(cuttingOrderData.error || '创建裁床单失败');
+          return;
+        }
+        
+        const newCuttingOrderId = cuttingOrderData.data.id;
+        
+        // 2. 创建分扎
+        const bundles = bundleConfig.map(config => ({
+          size: config.size,
+          color: config.color,
+          quantity: config.piecesPerBundle,
+          bundle_count: config.bundleCount,
+        })).filter(b => b.bundle_count > 0);
+        
+        const bundleRes = await fetch('/api/cutting-bundles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cutting_order_id: newCuttingOrderId,
+            bundles,
+          }),
+        });
+        
+        const bundleData = await bundleRes.json();
+        if (bundleData.success) {
+          alert(`裁床单 ${cuttingOrderData.data.order_no} 创建成功，${bundleData.message}`);
+          setCreateDialogOpen(false);
+          setCreateNewCuttingOrder(false);
+          setNewCuttingOrderForm({
+            style_no: '',
+            color: '',
+            quantity: 0,
+            size_breakdown: '',
+            cutting_date: new Date().toISOString().split('T')[0],
+            notes: '',
+          });
+          setBundleConfig([]);
+          fetchBundles();
+          fetchCuttingOrders();
+        } else {
+          alert(bundleData.error || '创建分扎失败');
+        }
+      } catch (error) {
+        alert('创建失败');
+      }
+      return;
+    }
+    
+    // 已有裁床单模式
     if (!selectedCuttingOrder) return;
     
     try {
@@ -622,7 +741,14 @@ export default function CuttingBundlesPage() {
       </Card>
 
       {/* 创建分扎对话框 */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog open={createDialogOpen} onOpenChange={(open) => {
+        setCreateDialogOpen(open);
+        if (!open) {
+          setCreateNewCuttingOrder(false);
+          setSelectedCuttingOrder(null);
+          setBundleConfig([]);
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -632,55 +758,162 @@ export default function CuttingBundlesPage() {
           </DialogHeader>
           
           <div className="space-y-6 py-4">
-            {/* 选择裁床单 */}
-            <div className="space-y-2">
-              <Label className="text-base font-semibold">选择裁床单 *</Label>
-              <Select 
-                value={selectedCuttingOrder?.id || ''} 
-                onValueChange={handleSelectCuttingOrder}
+            {/* 模式切换 */}
+            <div className="flex gap-2 p-1 bg-muted rounded-lg">
+              <Button
+                variant={!createNewCuttingOrder ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setCreateNewCuttingOrder(false);
+                  setBundleConfig([]);
+                }}
+                className="flex-1"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择裁床单" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cuttingOrders.map(order => (
-                    <SelectItem key={order.id} value={order.id}>
-                      {order.order_no} - {order.style_no} ({order.color})
-                      {order.bed_number && ` - 第${order.bed_number}床`}
-                      - {order.quantity}件
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                选择已有裁床单
+              </Button>
+              <Button
+                variant={createNewCuttingOrder ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setCreateNewCuttingOrder(true);
+                  setSelectedCuttingOrder(null);
+                  setBundleConfig([]);
+                }}
+                className="flex-1"
+              >
+                新建裁床单并分扎
+              </Button>
             </div>
 
-            {selectedCuttingOrder && (
-              <>
-                {/* 裁床单信息 */}
-                <Card className="bg-blue-50 border-blue-200">
-                  <CardContent className="pt-4">
-                    <div className="grid grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500">裁床单号：</span>
-                        <span className="font-medium">{selectedCuttingOrder.order_no}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">款号：</span>
-                        <span className="font-medium">{selectedCuttingOrder.style_no}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">颜色：</span>
-                        <span className="font-medium">{selectedCuttingOrder.color}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">总数量：</span>
-                        <span className="font-bold">{selectedCuttingOrder.quantity}</span> 件
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            {/* 选择已有裁床单模式 */}
+            {!createNewCuttingOrder && (
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">选择裁床单 *</Label>
+                <Select 
+                  value={selectedCuttingOrder?.id || ''} 
+                  onValueChange={handleSelectCuttingOrder}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择裁床单" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cuttingOrders.map(order => (
+                      <SelectItem key={order.id} value={order.id}>
+                        {order.order_no} - {order.style_no} ({order.color})
+                        {order.bed_number && ` - 第${order.bed_number}床`}
+                        - {order.quantity}件
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-                {/* 分扎配置 */}
+            {/* 新建裁床单模式 */}
+            {createNewCuttingOrder && (
+              <Card className="border-dashed">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">新建裁床单</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>款号 *</Label>
+                      <Input
+                        value={newCuttingOrderForm.style_no}
+                        onChange={(e) => setNewCuttingOrderForm(prev => ({ ...prev, style_no: e.target.value }))}
+                        placeholder="如: STYLE-2024-001"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>颜色 *</Label>
+                      <Input
+                        value={newCuttingOrderForm.color}
+                        onChange={(e) => setNewCuttingOrderForm(prev => ({ ...prev, color: e.target.value }))}
+                        placeholder="如: 黑色"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>总数量 *</Label>
+                      <Input
+                        type="number"
+                        value={newCuttingOrderForm.quantity || ''}
+                        onChange={(e) => setNewCuttingOrderForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                        placeholder="总件数"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>裁床日期</Label>
+                      <Input
+                        type="date"
+                        value={newCuttingOrderForm.cutting_date}
+                        onChange={(e) => setNewCuttingOrderForm(prev => ({ ...prev, cutting_date: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>尺码明细（可选）</Label>
+                    <Input
+                      value={newCuttingOrderForm.size_breakdown}
+                      onChange={(e) => setNewCuttingOrderForm(prev => ({ ...prev, size_breakdown: e.target.value }))}
+                      placeholder="格式: S:50,M:100,L:80,XL:60"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      不填写则按总数量生成均码
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>备注</Label>
+                    <Input
+                      value={newCuttingOrderForm.notes}
+                      onChange={(e) => setNewCuttingOrderForm(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="备注信息"
+                    />
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={initNewCuttingOrderBundles}
+                    disabled={!newCuttingOrderForm.style_no || !newCuttingOrderForm.color || !newCuttingOrderForm.quantity}
+                  >
+                    生成预览分扎配置
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 分扎配置预览 */}
+            {bundleConfig.length > 0 && (
+              <>
+                {/* 裁床单信息（已有模式） */}
+                {selectedCuttingOrder && !createNewCuttingOrder && (
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardContent className="pt-4">
+                      <div className="grid grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500">裁床单号：</span>
+                          <span className="font-medium">{selectedCuttingOrder.order_no}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">款号：</span>
+                          <span className="font-medium">{selectedCuttingOrder.style_no}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">颜色：</span>
+                          <span className="font-medium">{selectedCuttingOrder.color}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">总数量：</span>
+                          <span className="font-bold">{selectedCuttingOrder.quantity}</span> 件
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* 分扎配置表格 */}
                 <div className="space-y-3">
                   <Label className="text-base font-semibold">分扎配置（每码可自定义）</Label>
                   
@@ -752,6 +985,7 @@ export default function CuttingBundlesPage() {
               </>
             )}
 
+            {/* 底部按钮 */}
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={() => {
                 setCreateDialogOpen(false);
@@ -762,9 +996,9 @@ export default function CuttingBundlesPage() {
               </Button>
               <Button 
                 onClick={handleCreateBundles}
-                disabled={!selectedCuttingOrder || bundleConfig.length === 0 || totalBundles === 0}
+                disabled={bundleConfig.length === 0 || totalBundles === 0}
               >
-                创建分扎 ({totalBundles}扎)
+                {createNewCuttingOrder ? '创建裁床单并分扎' : `创建分扎 (${totalBundles}扎)`}
               </Button>
             </div>
           </div>

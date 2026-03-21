@@ -52,6 +52,8 @@ export default function SupplierRegisterPage() {
     // 银行信息
     bank_name: '',
     bank_account: '',
+    bank_branch: '',
+    account_name: '',
     // 账号信息
     password: '',
     confirm_password: '',
@@ -73,6 +75,9 @@ export default function SupplierRegisterPage() {
       }
     }
     if (step === 3) {
+      // 银行信息可选，不强制验证
+    }
+    if (step === 4) {
       if (!form.password || form.password.length < 6) {
         setError('密码至少6位');
         return;
@@ -111,6 +116,8 @@ export default function SupplierRegisterPage() {
           tax_no: form.tax_no || null,
           bank_name: form.bank_name || null,
           bank_account: form.bank_account || null,
+          bank_branch: form.bank_branch || null,
+          account_name: form.account_name || null,
           password: form.password,
           notes: form.notes || null,
         }),
@@ -163,7 +170,7 @@ export default function SupplierRegisterPage() {
           
           {/* 进度条 */}
           <div className="flex justify-center mt-4 gap-2">
-            {[1, 2, 3, 4].map((s) => (
+            {[1, 2, 3, 4, 5].map((s) => (
               <div
                 key={s}
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -176,9 +183,10 @@ export default function SupplierRegisterPage() {
               </div>
             ))}
           </div>
-          <div className="flex justify-center gap-8 text-xs text-gray-500 mt-1">
+          <div className="flex justify-center gap-4 text-xs text-gray-500 mt-1">
             <span>基本信息</span>
             <span>联系方式</span>
+            <span>银行账户</span>
             <span>账号设置</span>
             <span>提交审核</span>
           </div>
@@ -304,9 +312,12 @@ export default function SupplierRegisterPage() {
             </div>
           )}
 
-          {/* 步骤3：账号设置 */}
+          {/* 步骤3：银行账户 */}
           {step === 3 && (
             <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                银行账户信息用于后续结算付款，请准确填写
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>开户银行</Label>
@@ -315,11 +326,21 @@ export default function SupplierRegisterPage() {
                     <Input
                       value={form.bank_name}
                       onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
-                      placeholder="银行名称"
+                      placeholder="如：中国工商银行"
                       className="pl-10"
                     />
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>开户支行</Label>
+                  <Input
+                    value={form.bank_branch}
+                    onChange={(e) => setForm({ ...form, bank_branch: e.target.value })}
+                    placeholder="如：深圳南山支行"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>银行账号</Label>
                   <Input
@@ -328,7 +349,21 @@ export default function SupplierRegisterPage() {
                     placeholder="银行账号"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>账户名称</Label>
+                  <Input
+                    value={form.account_name}
+                    onChange={(e) => setForm({ ...form, account_name: e.target.value })}
+                    placeholder="账户名称（可与公司名称不同）"
+                  />
+                </div>
               </div>
+            </div>
+          )}
+
+          {/* 步骤4：账号设置 */}
+          {step === 4 && (
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label>登录密码 *</Label>
                 <Input
@@ -350,8 +385,8 @@ export default function SupplierRegisterPage() {
             </div>
           )}
 
-          {/* 步骤4：确认提交 */}
-          {step === 4 && (
+          {/* 步骤5：确认提交 */}
+          {step === 5 && (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                 <h3 className="font-medium">请确认注册信息</h3>
@@ -364,6 +399,10 @@ export default function SupplierRegisterPage() {
                   <div>电话：{form.phone}</div>
                   <div>邮箱：{form.email || '-'}</div>
                   <div>地址：{form.address || '-'}</div>
+                  <div>开户银行：{form.bank_name || '-'}</div>
+                  <div>开户支行：{form.bank_branch || '-'}</div>
+                  <div>银行账号：{form.bank_account || '-'}</div>
+                  <div>账户名称：{form.account_name || '-'}</div>
                 </div>
               </div>
               <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
@@ -389,7 +428,7 @@ export default function SupplierRegisterPage() {
             ) : (
               <div />
             )}
-            {step < 4 ? (
+            {step < 5 ? (
               <Button onClick={handleNext}>
                 下一步
               </Button>

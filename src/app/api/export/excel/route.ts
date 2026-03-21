@@ -206,6 +206,149 @@ export async function POST(request: NextRequest) {
         filename = `员工列表_${formatDate(new Date())}`;
         break;
 
+      case 'salaries':
+        // 工资明细导出
+        const monthFilter = filters?.month;
+        const salaryQuery = client
+          .from('salaries')
+          .select(`
+            id, employee_id, year, month, base_salary, overtime_pay, 
+            bonus, deduction, total_amount, status, paid_date, created_at,
+            employees(name, employee_no, department, position, bank_name, bank_account)
+          `)
+          .order('created_at', { ascending: false });
+        
+        if (monthFilter) {
+          const [year, month] = monthFilter.split('-').map(Number);
+          const { data: salaryData } = await salaryQuery.eq('year', year).eq('month', month);
+          var salaries = salaryData;
+        } else {
+          const { data: salaryData } = await salaryQuery;
+          var salaries = salaryData;
+        }
+        
+        data = (salaries || []).map(s => {
+          const emp = Array.isArray(s.employees) ? s.employees[0] : s.employees;
+          return {
+            '工号': emp?.employee_no || '-',
+            '姓名': emp?.name || '-',
+            '部门': emp?.department || '-',
+            '职位': emp?.position || '-',
+            '年份': s.year,
+            '月份': s.month,
+            '基本工资': s.base_salary || 0,
+            '加班费': s.overtime_pay || 0,
+            '奖金': s.bonus || 0,
+            '扣款': s.deduction || 0,
+            '实发工资': s.total_amount || 0,
+            '开户银行': emp?.bank_name || '-',
+            '银行账号': emp?.bank_account || '-',
+            '状态': getSalaryStatusText(s.status),
+            '发放日期': formatDate(s.paid_date),
+          };
+        });
+        filename = `工资明细_${monthFilter || formatDate(new Date())}`;
+        break;
+
+      case 'order_details':
+        // 订单明细导出
+        const { data: orderDetails } = await client
+          .from('production_orders')
+          .select(`
+            id, order_no, style_no, style_name, total_quantity, completed_quantity,
+            plan_start_date, plan_end_date, status, created_at,
+            customers(name),
+            cutting_orders(id, order_no, cutting_qty, status),
+            craft_processes(id, process_name, quantity, status, total_cost)
+          `)
+          .order('created_at', { ascending: false });
+        
+        data = [];
+        (orderDetails || []).forEach(order => {
+          const customer = Array.isArray(order.customers) ? order.customers[0] : order.customers;
+          const cuttingOrders = order.cutting_orders || [];
+          const crafts = order.craft_processes || [];
+          
+          // 主订单行
+          data.push({
+            '订单编号': order.order_no,
+            '款号': order.style_no,
+            '款名': order.style_name,
+            '客户': customer?.name || '-',
+            '总数量': order.total_quantity,
+            '已完成': order.completed_quantity || 0,
+            '完成率': `${Math.round((order.completed_quantity || 0) / order.total_quantity * 100)}%`,
+            '状态': getStatusText(order.status),
+            '计划开始': order.plan_start_date || '-',
+            '计划结束': order.plan_end_date || '-',
+            '裁床情况': cuttingOrders.length > 0 ? `${cuttingOrders.length}床` : '未裁床',
+            '工艺情况': crafts.length > 0 ? `${crafts.length}道` : '无',
+            '工艺成本': crafts.reduce((sum: number, c: any) => sum + (c.total_cost || 0), 0),
+            '创建时间': formatDate(order.created_at),
+          });
+        });
+        filename = `订单明细_${formatDate(new Date())}`;
+        break;
+
+      case 'finance_summary':
+        // 财务明细导出
+        const [supplierPayments, craftCosts, salaryPayments] = await Promise.all([
+          client.from('supplier_payments').select('*, suppliers(name)').order('created_at', { ascending: false }),
+          client.from('craft_processes').select('*, suppliers(name), production_orders(order_no)').order('created_at', { ascending: false }),
+          client.from('salaries').select('*, employees(name)').eq('status', 'paid').order('created_at', { ascending: false }),
+        ]);
+        
+        data = [];
+        
+        // 供应商付款
+        (supplierPayments.data || []).forEach(p => {
+          const supplier = Array.isArray(p.suppliers) ? p.suppliers[0] : p.suppliers;
+          data.push({
+            '类型': '供应商付款',
+            '编号': p.payment_no || '-',
+            '关联方': supplier?.name || '-',
+            '金额': p.amount || 0,
+            '付款方式': p.payment_method || '-',
+            '付款日期': formatDate(p.payment_date),
+            '状态': p.status === 'completed' ? '已完成' : '处理中',
+            '备注': p.notes || '-',
+          });
+        });
+        
+        // 工艺成本
+        (craftCosts.data || []).forEach(c => {
+          const supplier = Array.isArray(c.suppliers) ? c.suppliers[0] : c.suppliers;
+          const order = Array.isArray(c.production_orders) ? c.production_orders[0] : c.production_orders;
+          data.push({
+            '类型': '工艺成本',
+            '编号': order?.order_no || '-',
+            '关联方': supplier?.name || '-',
+            '金额': c.total_cost || 0,
+            '付款方式': '-',
+            '付款日期': formatDate(c.end_time || c.created_at),
+            '状态': getStatusText(c.status),
+            '备注': c.process_name || '-',
+          });
+        });
+        
+        // 工资发放
+        (salaryPayments.data || []).forEach(s => {
+          const emp = Array.isArray(s.employees) ? s.employees[0] : s.employees;
+          data.push({
+            '类型': '工资发放',
+            '编号': `${s.year}-${String(s.month).padStart(2, '0')}`,
+            '关联方': emp?.name || '-',
+            '金额': s.total_amount || 0,
+            '付款方式': '银行转账',
+            '付款日期': formatDate(s.paid_date),
+            '状态': '已发放',
+            '备注': `${s.year}年${s.month}月工资`,
+          });
+        });
+        
+        filename = `财务明细_${formatDate(new Date())}`;
+        break;
+
       default:
         return NextResponse.json({ error: '不支持的数据类型' }, { status: 400 });
     }
@@ -279,6 +422,15 @@ function getOutsourceStatusText(status: string): string {
     in_production: '生产中',
     completed: '已完成',
     returned: '已回货',
+  };
+  return statusMap[status] || status;
+}
+
+function getSalaryStatusText(status: string): string {
+  const statusMap: Record<string, string> = {
+    pending: '待确认',
+    confirmed: '已确认',
+    paid: '已发放',
   };
   return statusMap[status] || status;
 }

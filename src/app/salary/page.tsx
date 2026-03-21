@@ -42,7 +42,9 @@ import {
   FileSignature,
   Calculator,
   Loader2,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { ExportButton } from '@/components/export-button';
 
 interface Salary {
   id: string;
@@ -188,10 +190,15 @@ export default function SalaryPage() {
           <p className="text-muted-foreground">管理员工工资和发放</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            导出工资条
-          </Button>
+          <ExportButton 
+            dataType="salaries" 
+            filters={{ month }}
+            buttonText="导出工资条"
+          />
+          <ExportButton 
+            dataType="finance_summary" 
+            buttonText="导出财务明细"
+          />
           <Button onClick={() => setGenerateDialogOpen(true)}>
             <Calculator className="mr-2 h-4 w-4" />
             生成工资条

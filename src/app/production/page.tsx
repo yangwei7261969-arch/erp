@@ -48,7 +48,9 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Download,
 } from 'lucide-react';
+import { ExportButton } from '@/components/export-button';
 
 interface ProductionOrder {
   id: string;
@@ -311,10 +313,22 @@ export default function ProductionPage() {
           <h1 className="text-2xl md:text-3xl font-bold">生产订单</h1>
           <p className="text-sm md:text-base text-muted-foreground">管理生产订单、外发、二次工艺和尾部处理</p>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="w-full md:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          新建订单
-        </Button>
+        <div className="flex gap-2 w-full md:w-auto">
+          <ExportButton 
+            dataType="production_orders" 
+            buttonText="导出订单"
+            variant="outline"
+          />
+          <ExportButton 
+            dataType="order_details" 
+            buttonText="订单明细"
+            variant="outline"
+          />
+          <Button onClick={() => handleOpenDialog()} className="flex-1 md:flex-none">
+            <Plus className="mr-2 h-4 w-4" />
+            新建订单
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
