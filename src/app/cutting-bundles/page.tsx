@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import PrintTicketsDialog from '@/components/print-tickets-dialog';
 import { 
   QrCode, 
   Printer, 
@@ -53,6 +55,8 @@ interface CuttingBundle {
     order_no: string;
     style_no: string;
     color: string;
+    bed_number?: number;
+    total_beds?: number;
   };
 }
 
@@ -95,7 +99,11 @@ export default function CuttingBundlesPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [outsourceDialogOpen, setOutsourceDialogOpen] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState<CuttingBundle | null>(null);
-  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  
+  // 批量打印相关状态
+  const [batchPrintOpen, setBatchPrintOpen] = useState(false);
+  const [selectedBundleIds, setSelectedBundleIds] = useState<string[]>([]);
+  const [craftProcesses, setCraftProcesses] = useState<any[]>([]);
   
   // 外发表单
   const [outsourceForm, setOutsourceForm] = useState({
@@ -128,7 +136,21 @@ export default function CuttingBundlesPage() {
     fetchCuttingOrders();
     fetchProcesses();
     fetchSuppliers();
+    fetchCraftProcesses();
   }, [selectedOrderId, filterStatus]);
+
+  // 获取二次工艺信息
+  const fetchCraftProcesses = async () => {
+    try {
+      const res = await fetch('/api/craft-processes?pageSize=200');
+      const data = await res.json();
+      if (data.success) {
+        setCraftProcesses(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch craft processes:', error);
+    }
+  };
 
   const fetchBundles = async () => {
     setLoading(true);
@@ -338,66 +360,6 @@ export default function CuttingBundlesPage() {
     }
   };
 
-  const handlePrintTickets = () => {
-    if (!selectedBundle) return;
-    
-    const printContent = generatePrintContent(selectedBundle, printQuantity);
-    
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.print();
-    }
-    
-    setPrintDialogOpen(false);
-  };
-
-  const generatePrintContent = (bundle: CuttingBundle, count: number) => {
-    const tickets = [];
-    for (let i = 0; i < count; i++) {
-      tickets.push(`
-        <div class="ticket" style="width: 8cm; height: 5cm; border: 2px solid #000; padding: 8px; margin: 5mm; display: inline-block; font-family: Arial, sans-serif;">
-          <div style="text-align: center; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 5px;">
-            <h2 style="margin: 0; font-size: 14px;">工票 / 扎票</h2>
-          </div>
-          <div style="font-size: 12px; line-height: 1.6;">
-            <div><strong>扎号：</strong>${bundle.bundle_no}</div>
-            <div><strong>款号：</strong>${bundle.cutting_orders?.style_no || '-'}</div>
-            <div><strong>颜色：</strong>${bundle.color}</div>
-            <div><strong>尺码：</strong>${bundle.size}</div>
-            <div><strong>数量：</strong>${bundle.quantity} 件</div>
-            <div><strong>工序：</strong>_____________</div>
-            <div><strong>员工：</strong>_____________</div>
-          </div>
-          <div style="text-align: center; margin-top: 8px;">
-            <div style="font-family: 'Courier New', monospace; font-size: 10px; background: #f0f0f0; padding: 5px;">
-              ${bundle.qr_code}
-            </div>
-          </div>
-        </div>
-      `);
-    }
-    
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>工票打印 - ${bundle.bundle_no}</title>
-        <style>
-          @media print {
-            body { margin: 0; }
-            @page { size: auto; margin: 5mm; }
-          }
-        </style>
-      </head>
-      <body>
-        ${tickets.join('')}
-      </body>
-      </html>
-    `;
-  };
-
   const filteredBundles = bundles.filter(bundle => {
     const matchesSearch = 
       bundle.bundle_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -417,6 +379,37 @@ export default function CuttingBundlesPage() {
     return <Badge className={className}>{label}</Badge>;
   };
 
+  // 批量选择功能
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedBundleIds(filteredBundles.map(b => b.id));
+    } else {
+      setSelectedBundleIds([]);
+    }
+  };
+
+  const handleSelectBundle = (bundleId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedBundleIds(prev => [...prev, bundleId]);
+    } else {
+      setSelectedBundleIds(prev => prev.filter(id => id !== bundleId));
+    }
+  };
+
+  // 批量打印
+  const handleBatchPrint = () => {
+    if (selectedBundleIds.length === 0) {
+      alert('请先选择要打印的扎包');
+      return;
+    }
+    setBatchPrintOpen(true);
+  };
+
+  // 获取选中的扎包用于打印
+  const getSelectedBundlesForPrint = () => {
+    return bundles.filter(b => selectedBundleIds.includes(b.id));
+  };
+
   // 计算分扎汇总
   const totalBundles = bundleConfig.reduce((sum, c) => sum + c.bundleCount, 0);
   const totalPieces = bundleConfig.reduce((sum, c) => sum + c.orderQty, 0);
@@ -433,6 +426,14 @@ export default function CuttingBundlesPage() {
         </div>
         
         <div className="flex gap-3">
+          <Button 
+            variant="outline"
+            onClick={handleBatchPrint}
+            disabled={selectedBundleIds.length === 0}
+          >
+            <Printer className="h-4 w-4 mr-2" />
+            批量打菲 ({selectedBundleIds.length})
+          </Button>
           <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             创建分扎
@@ -524,6 +525,12 @@ export default function CuttingBundlesPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedBundleIds.length === filteredBundles.length && filteredBundles.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>扎号</TableHead>
                 <TableHead>款号</TableHead>
                 <TableHead>颜色</TableHead>
@@ -537,19 +544,25 @@ export default function CuttingBundlesPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                     加载中...
                   </TableCell>
                 </TableRow>
               ) : filteredBundles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                     暂无数据
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredBundles.map((bundle) => (
                   <TableRow key={bundle.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedBundleIds.includes(bundle.id)}
+                        onCheckedChange={(checked) => handleSelectBundle(bundle.id, checked as boolean)}
+                      />
+                    </TableCell>
                     <TableCell className="font-mono font-bold">{bundle.bundle_no}</TableCell>
                     <TableCell>{bundle.cutting_orders?.style_no || '-'}</TableCell>
                     <TableCell>{bundle.color}</TableCell>
@@ -563,8 +576,8 @@ export default function CuttingBundlesPage() {
                           size="sm" 
                           variant="outline"
                           onClick={() => {
-                            setSelectedBundle(bundle);
-                            setPrintDialogOpen(true);
+                            setSelectedBundleIds([bundle.id]);
+                            setBatchPrintOpen(true);
                           }}
                         >
                           <Printer className="h-4 w-4 mr-1" />
@@ -755,52 +768,18 @@ export default function CuttingBundlesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 打菲对话框 */}
-      <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Printer className="h-5 w-5" />
-              打菲（打印工票）
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedBundle && (
-            <div className="space-y-4 py-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><strong>扎号：</strong>{selectedBundle.bundle_no}</div>
-                  <div><strong>数量：</strong>{selectedBundle.quantity}件</div>
-                  <div><strong>颜色：</strong>{selectedBundle.color}</div>
-                  <div><strong>尺码：</strong>{selectedBundle.size}</div>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>打印数量</Label>
-                <Input 
-                  type="number"
-                  value={printQuantity}
-                  onChange={(e) => setPrintQuantity(parseInt(e.target.value) || 1)}
-                  min={1}
-                  max={20}
-                />
-                <p className="text-sm text-gray-500">建议每扎打印1-3张工票</p>
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>
-                  取消
-                </Button>
-                <Button onClick={handlePrintTickets}>
-                  <Printer className="h-4 w-4 mr-2" />
-                  打印
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* 批量打印对话框 */}
+      <PrintTicketsDialog
+        open={batchPrintOpen}
+        onOpenChange={(open) => {
+          setBatchPrintOpen(open);
+          if (!open) {
+            setSelectedBundleIds([]);
+          }
+        }}
+        bundles={getSelectedBundlesForPrint()}
+        craftProcesses={craftProcesses}
+      />
 
       {/* 外发对话框 */}
       <Dialog open={outsourceDialogOpen} onOpenChange={setOutsourceDialogOpen}>

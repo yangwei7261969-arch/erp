@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       if (orderIds.length > 0) {
         const { data: orderData } = await client
           .from('cutting_orders')
-          .select('id, order_no, style_no, color')
+          .select('id, order_no, style_no, color, bed_number, total_beds')
           .in('id', orderIds);
         
         if (orderData) {
