@@ -47,7 +47,7 @@ export default function DashboardPage() {
       const [orders, customers, materials, bills] = await Promise.all([
         ordersRes.json(),
         customersRes.json(),
-        customersRes.json(),
+        materialsRes.json(),
         billsRes.json(),
       ]);
 

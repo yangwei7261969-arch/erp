@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Package,
   Search,
@@ -43,37 +44,39 @@ import {
   Plus,
   Edit,
   Trash2,
-  Eye,
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Scissors,
 } from 'lucide-react';
 
 interface ProductionOrder {
   id: string;
   order_no: string;
-  customer_order_no: string | null;
-  customer_id: string | null;
   style_no: string;
   style_name: string;
-  sku: string | null;
   color: string;
-  size: string | null;
   quantity: number;
   completed_quantity: number;
-  defective_quantity: number;
-  unit: string;
   status: string;
-  priority: number;
   plan_start_date: string | null;
   plan_end_date: string | null;
-  actual_start_date: string | null;
-  actual_end_date: string | null;
-  factory_id: string | null;
   workshop: string | null;
-  production_line: string | null;
   notes: string | null;
   created_at: string;
+}
+
+interface CuttingOrder {
+  id: string;
+  order_no: string;
+  style_no: string;
+  color: string;
+  cutting_qty: number;
+  completed_qty: number;
+  defective_qty: number;
+  status: string;
+  cutting_date: string | null;
+  workshop: string | null;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
@@ -95,6 +98,21 @@ export default function ProductionPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ProductionOrder | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // 详情弹窗
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [cuttingOrders, setCuttingOrders] = useState<CuttingOrder[]>([]);
+  
+  // 裁床弹窗
+  const [cuttingDialogOpen, setCuttingDialogOpen] = useState(false);
+  const [cuttingFormData, setCuttingFormData] = useState({
+    production_order_id: '',
+    style_no: '',
+    color: '',
+    cutting_qty: 0,
+    workshop: '',
+  });
   
   const [formData, setFormData] = useState({
     style_no: '',
@@ -229,6 +247,53 @@ export default function ProductionPage() {
     }
   };
 
+  // 查看详情
+  const handleViewDetail = async (order: ProductionOrder) => {
+    setSelectedOrder(order);
+    setDetailOpen(true);
+    
+    // 获取关联的裁床单
+    const response = await fetch(`/api/cutting-orders?productionOrderId=${order.id}`);
+    const result = await response.json();
+    if (result.success) {
+      setCuttingOrders(result.data);
+    }
+  };
+
+  // 打开裁床弹窗
+  const handleOpenCuttingDialog = (order: ProductionOrder) => {
+    setCuttingFormData({
+      production_order_id: order.id,
+      style_no: order.style_no,
+      color: order.color,
+      cutting_qty: order.quantity,
+      workshop: order.workshop || '',
+    });
+    setCuttingDialogOpen(true);
+  };
+
+  // 提交裁床单
+  const handleCuttingSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/cutting-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cuttingFormData),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setCuttingDialogOpen(false);
+        fetchOrders();
+        alert('裁床单创建成功！');
+      }
+    } catch (error) {
+      console.error('Cutting submit error:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / pageSize);
 
   return (
@@ -236,7 +301,7 @@ export default function ProductionPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">生产管理</h1>
-          <p className="text-muted-foreground">管理生产订单和进度</p>
+          <p className="text-muted-foreground">管理生产订单、裁床和进度</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">
@@ -285,12 +350,12 @@ export default function ProductionPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">待开始</CardTitle>
+            <CardTitle className="text-sm font-medium">总下单数</CardTitle>
             <Package className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-500">
-              {orders.filter(o => o.status === 'pending').length}
+              {orders.reduce((sum, o) => sum + o.quantity, 0).toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -345,7 +410,7 @@ export default function ProductionPage() {
                     <TableHead>款号</TableHead>
                     <TableHead>款名</TableHead>
                     <TableHead>颜色</TableHead>
-                    <TableHead>数量</TableHead>
+                    <TableHead>下单数</TableHead>
                     <TableHead>完成数</TableHead>
                     <TableHead>进度</TableHead>
                     <TableHead>状态</TableHead>
@@ -365,7 +430,7 @@ export default function ProductionPage() {
                         <TableCell>{order.style_no}</TableCell>
                         <TableCell>{order.style_name}</TableCell>
                         <TableCell>{order.color}</TableCell>
-                        <TableCell>{order.quantity}</TableCell>
+                        <TableCell className="font-medium">{order.quantity}</TableCell>
                         <TableCell>{order.completed_quantity}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -384,7 +449,14 @@ export default function ProductionPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => handleViewDetail(order)}
+                            >
+                              详情
+                            </Button>
                             {order.status === 'pending' && (
                               <Button 
                                 size="sm" 
@@ -395,13 +467,23 @@ export default function ProductionPage() {
                               </Button>
                             )}
                             {order.status === 'in_progress' && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleUpdateStatus(order.id, 'completed')}
-                              >
-                                完成
-                              </Button>
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleOpenCuttingDialog(order)}
+                                >
+                                  <Scissors className="h-3 w-3 mr-1" />
+                                  裁床
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleUpdateStatus(order.id, 'completed')}
+                                >
+                                  完成
+                                </Button>
+                              </>
                             )}
                             <Button 
                               size="icon" 
@@ -440,7 +522,7 @@ export default function ProductionPage() {
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="text-sm">
-                    第 {page} / {totalPages} 页
+                    第 {page} / {totalPages || 1} 页
                   </span>
                   <Button
                     variant="outline"
@@ -457,7 +539,119 @@ export default function ProductionPage() {
         </CardContent>
       </Card>
 
-      {/* Dialog */}
+      {/* 订单详情弹窗 */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>订单详情 - {selectedOrder?.order_no}</DialogTitle>
+            <DialogDescription>
+              {selectedOrder?.style_name} - {selectedOrder?.color}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs defaultValue="info">
+            <TabsList>
+              <TabsTrigger value="info">基本信息</TabsTrigger>
+              <TabsTrigger value="cutting">裁床记录</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="info" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">订单号</Label>
+                  <div className="font-medium">{selectedOrder?.order_no}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">款号</Label>
+                  <div className="font-medium">{selectedOrder?.style_no}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">下单数量</Label>
+                  <div className="font-medium text-lg">{selectedOrder?.quantity} 件</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">完成数量</Label>
+                  <div className="font-medium text-lg text-green-600">{selectedOrder?.completed_quantity} 件</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">状态</Label>
+                  <div>
+                    <Badge variant={statusConfig[selectedOrder?.status]?.variant}>
+                      {statusConfig[selectedOrder?.status]?.label}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">车间</Label>
+                  <div className="font-medium">{selectedOrder?.workshop || '-'}</div>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="cutting">
+              {cuttingOrders.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  暂无裁床记录
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>裁床单号</TableHead>
+                      <TableHead>裁床数</TableHead>
+                      <TableHead>完成数</TableHead>
+                      <TableHead>次品数</TableHead>
+                      <TableHead>状态</TableHead>
+                      <TableHead>日期</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cuttingOrders.map((co) => (
+                      <TableRow key={co.id}>
+                        <TableCell>{co.order_no}</TableCell>
+                        <TableCell>{co.cutting_qty}</TableCell>
+                        <TableCell>{co.completed_qty}</TableCell>
+                        <TableCell>{co.defective_qty}</TableCell>
+                        <TableCell>
+                          <Badge variant={co.status === 'completed' ? 'default' : 'secondary'}>
+                            {co.status === 'completed' ? '已完成' : '进行中'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{co.cutting_date || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+              
+              <div className="mt-4 p-4 bg-muted rounded-lg">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {cuttingOrders.reduce((sum, c) => sum + c.cutting_qty, 0)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">总裁床数</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {cuttingOrders.reduce((sum, c) => sum + c.completed_qty, 0)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">总完成数</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-red-600">
+                      {cuttingOrders.reduce((sum, c) => sum + c.defective_qty, 0)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">总次品数</div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* 新建订单弹窗 */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -495,7 +689,7 @@ export default function ProductionPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="quantity">数量 *</Label>
+                <Label htmlFor="quantity">下单数量 *</Label>
                 <Input
                   id="quantity"
                   type="number"
@@ -526,11 +720,19 @@ export default function ProductionPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="workshop">车间</Label>
-              <Input
-                id="workshop"
-                value={formData.workshop}
-                onChange={(e) => setFormData({ ...formData, workshop: e.target.value })}
-              />
+              <Select 
+                value={formData.workshop} 
+                onValueChange={(v) => setFormData({ ...formData, workshop: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择车间" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="一车间">一车间</SelectItem>
+                  <SelectItem value="二车间">二车间</SelectItem>
+                  <SelectItem value="三车间">三车间</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">备注</Label>
@@ -553,6 +755,72 @@ export default function ProductionPage() {
                 </>
               ) : (
                 '保存'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 裁床弹窗 */}
+      <Dialog open={cuttingDialogOpen} onOpenChange={setCuttingDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>创建裁床单</DialogTitle>
+            <DialogDescription>
+              为订单 {cuttingFormData.style_no} 创建裁床单
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>款号</Label>
+                <Input value={cuttingFormData.style_no} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>颜色</Label>
+                <Input value={cuttingFormData.color} disabled />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cutting_qty">裁床数量 *</Label>
+                <Input
+                  id="cutting_qty"
+                  type="number"
+                  value={cuttingFormData.cutting_qty}
+                  onChange={(e) => setCuttingFormData({ ...cuttingFormData, cutting_qty: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="workshop">车间</Label>
+                <Select 
+                  value={cuttingFormData.workshop} 
+                  onValueChange={(v) => setCuttingFormData({ ...cuttingFormData, workshop: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择车间" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="一车间">一车间</SelectItem>
+                    <SelectItem value="二车间">二车间</SelectItem>
+                    <SelectItem value="三车间">三车间</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCuttingDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCuttingSubmit} disabled={submitting}>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  创建中...
+                </>
+              ) : (
+                '创建裁床单'
               )}
             </Button>
           </DialogFooter>

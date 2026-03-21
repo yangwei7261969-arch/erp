@@ -1,14 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -18,23 +18,43 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Truck,
-  Download,
   Plus,
-  CheckCircle,
-  Clock,
+  Loader2,
   Package,
-  RotateCcw,
+  CheckCircle,
 } from 'lucide-react';
 
-const shipments = [
-  { id: 'SHP2024001', customer: '广州服饰', items: 5, quantity: 1000, amount: 150000, status: 'delivered', date: '2024-01-15', trackingNo: 'SF1234567890' },
-  { id: 'SHP2024002', customer: '深圳时尚', items: 8, quantity: 2000, amount: 280000, status: 'shipped', date: '2024-01-14', trackingNo: 'SF1234567891' },
-  { id: 'SHP2024003', customer: '东莞服装', items: 3, quantity: 500, amount: 45000, status: 'pending', date: '2024-01-13', trackingNo: '-' },
-  { id: 'SHP2024004', customer: '佛山纺织', items: 6, quantity: 1500, amount: 120000, status: 'shipped', date: '2024-01-12', trackingNo: 'SF1234567892' },
-];
+interface Shipment {
+  id: string;
+  shipment_no: string;
+  customer_id: string;
+  shipment_date: string;
+  total_qty: number;
+  total_amount: number;
+  status: string;
+  tracking_no: string | null;
+  courier: string | null;
+  customers?: {
+    name: string;
+  };
+}
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
   pending: { label: '待发货', variant: 'outline' },
@@ -43,35 +63,171 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
 };
 
 export default function ShipmentPage() {
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [shipDialogOpen, setShipDialogOpen] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  
+  const [customers, setCustomers] = useState<any[]>([]);
+  
+  const [formData, setFormData] = useState({
+    customer_id: '',
+    shipment_date: new Date().toISOString().slice(0, 10),
+    notes: '',
+  });
+  
+  const [shipFormData, setShipFormData] = useState({
+    tracking_no: '',
+    courier: '',
+  });
+
+  const fetchShipments = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        pageSize: '20',
+        ...(statusFilter !== 'all' && { status: statusFilter }),
+      });
+      
+      const response = await fetch(`/api/shipments?${params}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setShipments(result.data);
+        setTotal(result.total);
+      }
+    } catch (error) {
+      console.error('Failed to fetch shipments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch('/api/customers?pageSize=100');
+      const result = await response.json();
+      if (result.success) {
+        setCustomers(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch customers:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchShipments();
+    fetchCustomers();
+  }, [page, statusFilter]);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setDialogOpen(false);
+        fetchShipments();
+        alert('出货单创建成功！');
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleShip = async () => {
+    if (!selectedShipment) return;
+    
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/shipments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedShipment.id,
+          action: 'ship',
+          ...shipFormData,
+        }),
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setShipDialogOpen(false);
+        fetchShipments();
+        alert('发货成功！');
+      }
+    } catch (error) {
+      console.error('Ship error:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeliver = async (id: string) => {
+    try {
+      const response = await fetch('/api/shipments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'deliver' }),
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        fetchShipments();
+        alert('已确认送达！');
+      }
+    } catch (error) {
+      console.error('Deliver error:', error);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">出货管理</h1>
-          <p className="text-muted-foreground">管理出货、退货和次品记录</p>
+          <p className="text-muted-foreground">管理出货单和物流</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            导出
-          </Button>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            新建出货单
-          </Button>
-        </div>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          新建出货单
+        </Button>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">待发货</CardTitle>
+            <CardTitle className="text-sm font-medium">总出货单</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">出货单</p>
+            <div className="text-2xl font-bold">{total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">待发货</CardTitle>
+            <Package className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-500">
+              {shipments.filter(s => s.status === 'pending').length}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -80,99 +236,204 @@ export default function ShipmentPage() {
             <Truck className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">出货单</p>
+            <div className="text-2xl font-bold text-blue-500">
+              {shipments.filter(s => s.status === 'shipped').length}
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">本月出货</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CardTitle className="text-sm font-medium">本月出货额</CardTitle>
+            <Package className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">¥2.1M</div>
-            <p className="text-xs text-muted-foreground">56 单</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">退货</CardTitle>
-            <RotateCcw className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">退货单</p>
+            <div className="text-2xl font-bold text-green-500">
+              ¥{shipments.reduce((sum, s) => sum + Number(s.total_amount), 0).toLocaleString()}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="shipments">
-        <TabsList>
-          <TabsTrigger value="shipments">出货单</TabsTrigger>
-          <TabsTrigger value="returns">退货管理</TabsTrigger>
-          <TabsTrigger value="defects">次品记录</TabsTrigger>
-        </TabsList>
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="状态筛选" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部状态</SelectItem>
+              <SelectItem value="pending">待发货</SelectItem>
+              <SelectItem value="shipped">运输中</SelectItem>
+              <SelectItem value="delivered">已送达</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="shipments">
-          <Card>
-            <CardContent className="pt-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>出货单号</TableHead>
-                    <TableHead>客户</TableHead>
-                    <TableHead>物料数</TableHead>
-                    <TableHead>数量</TableHead>
-                    <TableHead>金额</TableHead>
-                    <TableHead>状态</TableHead>
-                    <TableHead>物流单号</TableHead>
-                    <TableHead>日期</TableHead>
+      {/* Table */}
+      <Card>
+        <CardContent className="pt-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : shipments.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              暂无出货单
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>出货单号</TableHead>
+                  <TableHead>客户</TableHead>
+                  <TableHead>出货日期</TableHead>
+                  <TableHead>数量</TableHead>
+                  <TableHead>金额</TableHead>
+                  <TableHead>物流单号</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead>操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shipments.map((shipment) => (
+                  <TableRow key={shipment.id}>
+                    <TableCell className="font-medium">{shipment.shipment_no}</TableCell>
+                    <TableCell>{shipment.customers?.name || '-'}</TableCell>
+                    <TableCell>{shipment.shipment_date}</TableCell>
+                    <TableCell>{shipment.total_qty}</TableCell>
+                    <TableCell>¥{Number(shipment.total_amount).toLocaleString()}</TableCell>
+                    <TableCell>{shipment.tracking_no || '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusConfig[shipment.status]?.variant || 'outline'}>
+                        {statusConfig[shipment.status]?.label || shipment.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {shipment.status === 'pending' && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedShipment(shipment);
+                              setShipDialogOpen(true);
+                            }}
+                          >
+                            发货
+                          </Button>
+                        )}
+                        {shipment.status === 'shipped' && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleDeliver(shipment.id)}
+                          >
+                            确认送达
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {shipments.map((shipment) => (
-                    <TableRow key={shipment.id}>
-                      <TableCell className="font-medium">{shipment.id}</TableCell>
-                      <TableCell>{shipment.customer}</TableCell>
-                      <TableCell>{shipment.items}</TableCell>
-                      <TableCell>{shipment.quantity}</TableCell>
-                      <TableCell>¥{shipment.amount.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Badge variant={statusConfig[shipment.status].variant}>
-                          {statusConfig[shipment.status].label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{shipment.trackingNo}</TableCell>
-                      <TableCell>{shipment.date}</TableCell>
-                    </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 新建出货单弹窗 */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建出货单</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>客户 *</Label>
+              <Select 
+                value={formData.customer_id} 
+                onValueChange={(v) => setFormData({ ...formData, customer_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择客户" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>出货日期</Label>
+              <Input
+                type="date"
+                value={formData.shipment_date}
+                onChange={(e) => setFormData({ ...formData, shipment_date: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>备注</Label>
+              <Input
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>取消</Button>
+            <Button onClick={handleSubmit} disabled={submitting || !formData.customer_id}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              创建出货单
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <TabsContent value="returns">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-12 text-muted-foreground">
-                退货管理功能开发中...
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="defects">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-12 text-muted-foreground">
-                次品记录功能开发中...
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* 发货弹窗 */}
+      <Dialog open={shipDialogOpen} onOpenChange={setShipDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认发货</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>快递公司</Label>
+              <Select 
+                value={shipFormData.courier} 
+                onValueChange={(v) => setShipFormData({ ...shipFormData, courier: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择快递公司" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="顺丰快递">顺丰快递</SelectItem>
+                  <SelectItem value="圆通快递">圆通快递</SelectItem>
+                  <SelectItem value="中通快递">中通快递</SelectItem>
+                  <SelectItem value="韵达快递">韵达快递</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>物流单号</Label>
+              <Input
+                value={shipFormData.tracking_no}
+                onChange={(e) => setShipFormData({ ...shipFormData, tracking_no: e.target.value })}
+                placeholder="输入物流单号"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShipDialogOpen(false)}>取消</Button>
+            <Button onClick={handleShip} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              确认发货
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
