@@ -24,6 +24,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Box,
+  Cog,
+  Calculator,
+  Palette,
+  ClipboardList,
 } from 'lucide-react';
 
 const menuItems = [
@@ -40,9 +44,33 @@ const menuItems = [
     roles: ['production_manager', 'boss'],
   },
   {
-    title: '仓库库存',
+    title: '裁床管理',
+    icon: Scissors,
+    href: '/cutting',
+    roles: ['cutting_manager'],
+  },
+  {
+    title: '工序管理',
+    icon: Cog,
+    href: '/processes',
+    roles: ['production_manager', 'boss'],
+  },
+  {
+    title: '计件工资',
+    icon: Calculator,
+    href: '/piece-wages',
+    roles: ['production_manager', 'finance', 'hr'],
+  },
+  {
+    title: '二次工艺',
+    icon: Palette,
+    href: '/craft-processes',
+    roles: ['craft'],
+  },
+  {
+    title: '物料库存',
     icon: Package,
-    href: '/warehouse',
+    href: '/inventory',
     roles: ['warehouse', 'manager'],
   },
   {
@@ -82,18 +110,6 @@ const menuItems = [
     roles: ['boss', 'manager'],
   },
   {
-    title: '裁床管理',
-    icon: Scissors,
-    href: '/cutting',
-    roles: ['cutting_manager'],
-  },
-  {
-    title: '二次工艺',
-    icon: Sparkles,
-    href: '/craft',
-    roles: ['craft'],
-  },
-  {
     title: '出货管理',
     icon: Truck,
     href: '/shipment',
@@ -106,28 +122,16 @@ const menuItems = [
     roles: ['all'],
   },
   {
-    title: '系统设置',
-    icon: Settings,
-    href: '/settings',
-    roles: ['admin'],
-  },
-  {
-    title: '安全中心',
-    icon: Shield,
-    href: '/security',
-    roles: ['admin', 'boss'],
-  },
-  {
     title: '公告中心',
     icon: Bell,
     href: '/announcements',
     roles: ['all'],
   },
   {
-    title: '客服中心',
-    icon: MessageSquare,
-    href: '/support',
-    roles: ['support', 'admin'],
+    title: '系统设置',
+    icon: Settings,
+    href: '/settings',
+    roles: ['admin'],
   },
 ];
 
