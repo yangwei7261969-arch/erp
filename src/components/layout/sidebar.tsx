@@ -66,7 +66,7 @@ const menuItems = [
   {
     title: '人事管理',
     icon: Users,
-    href: '/hr',
+    href: '/employees',
     roles: ['hr', 'boss'],
   },
   {

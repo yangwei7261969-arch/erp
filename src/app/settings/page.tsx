@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -24,16 +24,108 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Settings,
   Shield,
-  Users,
   Palette,
   Bell,
   Database,
   Key,
   Globe,
   Mail,
+  Loader2,
+  Check,
 } from 'lucide-react';
 
 export default function SettingsPage() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    company_name: '',
+    company_short_name: '',
+    company_phone: '',
+    company_fax: '',
+    company_address: '',
+    system_email: '',
+    support_phone: '',
+    theme_mode: 'light',
+    theme_color: 'blue',
+    backup_cycle: 'daily',
+    log_retention_days: '90',
+    session_timeout: '30',
+    max_upload_size: '10',
+    force_password_change: 'false',
+    two_factor_auth: 'false',
+    operation_log: 'true',
+    notification_stock_warning: 'true',
+    notification_order_overdue: 'true',
+    notification_payment_due: 'true',
+    notification_announcement: 'true',
+    notification_ai_log: 'true',
+  });
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/settings');
+      const result = await response.json();
+      
+      if (result.success) {
+        setFormData(prev => ({
+          ...prev,
+          ...result.data,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: formData }),
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('设置保存成功！');
+      } else {
+        alert('保存失败：' + result.error);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('保存失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (confirm('确定要重置所有设置吗？')) {
+      fetchSettings();
+    }
+  };
+
+  const updateField = (key: string, value: string) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Page Header */}
@@ -65,26 +157,46 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>企业名称</Label>
-                  <Input placeholder="输入企业名称" defaultValue="XX服装有限公司" />
+                  <Input 
+                    placeholder="输入企业名称" 
+                    value={formData.company_name}
+                    onChange={(e) => updateField('company_name', e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>企业简称</Label>
-                  <Input placeholder="输入企业简称" defaultValue="XX服装" />
+                  <Input 
+                    placeholder="输入企业简称" 
+                    value={formData.company_short_name}
+                    onChange={(e) => updateField('company_short_name', e.target.value)}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>联系电话</Label>
-                  <Input placeholder="联系电话" defaultValue="020-12345678" />
+                  <Input 
+                    placeholder="联系电话" 
+                    value={formData.company_phone}
+                    onChange={(e) => updateField('company_phone', e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>传真号码</Label>
-                  <Input placeholder="传真号码" />
+                  <Input 
+                    placeholder="传真号码" 
+                    value={formData.company_fax}
+                    onChange={(e) => updateField('company_fax', e.target.value)}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>企业地址</Label>
-                <Textarea placeholder="企业详细地址" defaultValue="广东省广州市XX区XX路XX号" />
+                <Textarea 
+                  placeholder="企业详细地址" 
+                  value={formData.company_address}
+                  onChange={(e) => updateField('company_address', e.target.value)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -102,11 +214,20 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>系统通知邮箱</Label>
-                  <Input type="email" placeholder="system@company.com" />
+                  <Input 
+                    type="email" 
+                    placeholder="system@company.com"
+                    value={formData.system_email}
+                    onChange={(e) => updateField('system_email', e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>客服电话</Label>
-                  <Input placeholder="400-XXX-XXXX" />
+                  <Input 
+                    placeholder="400-XXX-XXXX"
+                    value={formData.support_phone}
+                    onChange={(e) => updateField('support_phone', e.target.value)}
+                  />
                 </div>
               </div>
             </CardContent>
@@ -161,7 +282,10 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label>主题模式</Label>
-                <Select defaultValue="light">
+                <Select 
+                  value={formData.theme_mode} 
+                  onValueChange={(v) => updateField('theme_mode', v)}
+                >
                   <SelectTrigger className="w-48">
                     <SelectValue />
                   </SelectTrigger>
@@ -175,10 +299,13 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label>主题色</Label>
                 <div className="flex gap-2">
-                  {['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-orange-500', 'bg-red-500'].map((color, index) => (
+                  {['blue', 'purple', 'green', 'orange', 'red'].map((color) => (
                     <button
-                      key={index}
-                      className={`h-8 w-8 rounded-full ${color} ring-offset-2 hover:ring-2 ring-primary`}
+                      key={color}
+                      onClick={() => updateField('theme_color', color)}
+                      className={`h-8 w-8 rounded-full bg-${color}-500 ring-offset-2 hover:ring-2 ${
+                        formData.theme_color === color ? 'ring-2 ring-primary' : ''
+                      }`}
                     />
                   ))}
                 </div>
@@ -207,18 +334,21 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {[
-                { label: '库存预警通知', description: '当物料库存低于安全库存时通知' },
-                { label: '订单超期通知', description: '当生产订单超过计划完成日期时通知' },
-                { label: '付款到期通知', description: '当应付账单即将到期时通知' },
-                { label: '系统公告推送', description: '有新公告时推送通知' },
-                { label: 'AI 操作记录', description: '记录所有 AI 助手的操作日志' },
-              ].map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
+                { key: 'notification_stock_warning', label: '库存预警通知', description: '当物料库存低于安全库存时通知' },
+                { key: 'notification_order_overdue', label: '订单超期通知', description: '当生产订单超过计划完成日期时通知' },
+                { key: 'notification_payment_due', label: '付款到期通知', description: '当应付账单即将到期时通知' },
+                { key: 'notification_announcement', label: '系统公告推送', description: '有新公告时推送通知' },
+                { key: 'notification_ai_log', label: 'AI 操作记录', description: '记录所有 AI 助手的操作日志' },
+              ].map((item) => (
+                <div key={item.key} className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">{item.label}</p>
                     <p className="text-sm text-muted-foreground">{item.description}</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={formData[item.key as keyof typeof formData] === 'true'}
+                    onCheckedChange={(checked) => updateField(item.key, checked ? 'true' : 'false')}
+                  />
                 </div>
               ))}
             </CardContent>
@@ -238,7 +368,10 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>数据备份周期</Label>
-                  <Select defaultValue="daily">
+                  <Select 
+                    value={formData.backup_cycle}
+                    onValueChange={(v) => updateField('backup_cycle', v)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -251,17 +384,29 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>日志保留天数</Label>
-                  <Input type="number" defaultValue="90" />
+                  <Input 
+                    type="number" 
+                    value={formData.log_retention_days}
+                    onChange={(e) => updateField('log_retention_days', e.target.value)}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>会话超时时间（分钟）</Label>
-                  <Input type="number" defaultValue="30" />
+                  <Input 
+                    type="number" 
+                    value={formData.session_timeout}
+                    onChange={(e) => updateField('session_timeout', e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>最大上传文件大小（MB）</Label>
-                  <Input type="number" defaultValue="10" />
+                  <Input 
+                    type="number" 
+                    value={formData.max_upload_size}
+                    onChange={(e) => updateField('max_upload_size', e.target.value)}
+                  />
                 </div>
               </div>
             </CardContent>
@@ -281,21 +426,30 @@ export default function SettingsPage() {
                   <p className="font-medium">强制密码修改</p>
                   <p className="text-sm text-muted-foreground">要求用户定期修改密码</p>
                 </div>
-                <Switch />
+                <Switch 
+                  checked={formData.force_password_change === 'true'}
+                  onCheckedChange={(checked) => updateField('force_password_change', checked ? 'true' : 'false')}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">双因素认证</p>
                   <p className="text-sm text-muted-foreground">启用双因素认证增强安全性</p>
                 </div>
-                <Switch />
+                <Switch 
+                  checked={formData.two_factor_auth === 'true'}
+                  onCheckedChange={(checked) => updateField('two_factor_auth', checked ? 'true' : 'false')}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">操作日志审计</p>
                   <p className="text-sm text-muted-foreground">记录所有用户操作日志</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch 
+                  checked={formData.operation_log === 'true'}
+                  onCheckedChange={(checked) => updateField('operation_log', checked ? 'true' : 'false')}
+                />
               </div>
             </CardContent>
           </Card>
@@ -304,8 +458,15 @@ export default function SettingsPage() {
 
       {/* Save Button */}
       <div className="flex justify-end gap-2">
-        <Button variant="outline">重置</Button>
-        <Button>保存设置</Button>
+        <Button variant="outline" onClick={handleReset}>重置</Button>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Check className="mr-2 h-4 w-4" />
+          )}
+          保存设置
+        </Button>
       </div>
     </div>
   );
