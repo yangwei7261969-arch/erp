@@ -18,6 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ExportButton } from '@/components/export-button';
 import {
   Truck,
   Package,
@@ -25,6 +26,7 @@ import {
   CheckCircle,
   AlertCircle,
   ExternalLink,
+  Download,
 } from 'lucide-react';
 
 interface OutsourceRecord {
@@ -160,9 +162,12 @@ export default function OutsourceTrackingPage() {
           <h1 className="text-3xl font-bold">外发跟踪</h1>
           <p className="text-muted-foreground">跟踪裁片外发和二次工艺加工进度</p>
         </div>
-        <Button onClick={fetchData}>
-          刷新数据
-        </Button>
+        <div className="flex gap-3">
+          <ExportButton dataType="outsource_tracking" />
+          <Button onClick={fetchData}>
+            刷新数据
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

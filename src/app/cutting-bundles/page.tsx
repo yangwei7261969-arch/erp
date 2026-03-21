@@ -25,6 +25,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import PrintTicketsDialog from '@/components/print-tickets-dialog';
+import { ExportButton } from '@/components/export-button';
 import { 
   QrCode, 
   Printer, 
@@ -38,6 +39,7 @@ import {
   AlertCircle,
   Send,
   Building2,
+  Download,
 } from 'lucide-react';
 
 interface CuttingBundle {
@@ -426,6 +428,7 @@ export default function CuttingBundlesPage() {
         </div>
         
         <div className="flex gap-3">
+          <ExportButton dataType="cutting_bundles" />
           <Button 
             variant="outline"
             onClick={handleBatchPrint}

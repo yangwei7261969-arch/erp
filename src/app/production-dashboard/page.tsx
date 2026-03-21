@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { BatchExportDialog } from '@/components/export-button';
+import { AIAssistant } from '@/components/ai-assistant';
 import {
   TrendingUp,
   TrendingDown,
@@ -15,6 +18,9 @@ import {
   Truck,
   Scissors,
   Printer,
+  Download,
+  Bot,
+  Sparkles,
 } from 'lucide-react';
 
 interface ProductionStats {
@@ -57,6 +63,8 @@ export default function ProductionDashboard() {
   const [processStatus, setProcessStatus] = useState<ProcessStatus[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [aiAssistantOpen, setAIAssistantOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -113,9 +121,23 @@ export default function ProductionDashboard() {
           <h1 className="text-3xl font-bold">生产看板</h1>
           <p className="text-muted-foreground mt-1">实时监控生产进度，智能预警管理</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          <span>自动刷新: 30秒</span>
+        <div className="flex items-center gap-3">
+          <Button 
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+            onClick={() => setAIAssistantOpen(true)}
+          >
+            <Bot className="h-4 w-4 mr-2" />
+            AI助手
+            <Sparkles className="h-3 w-3 ml-1" />
+          </Button>
+          <Button variant="outline" onClick={() => setExportDialogOpen(true)}>
+            <Download className="h-4 w-4 mr-2" />
+            数据导出
+          </Button>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            <span>自动刷新: 30秒</span>
+          </div>
         </div>
       </div>
 
@@ -336,6 +358,18 @@ export default function ProductionDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 批量导出对话框 */}
+      <BatchExportDialog 
+        open={exportDialogOpen} 
+        onOpenChange={setExportDialogOpen} 
+      />
+
+      {/* AI智能助手 */}
+      <AIAssistant 
+        open={aiAssistantOpen} 
+        onOpenChange={setAIAssistantOpen} 
+      />
     </div>
   );
 }
