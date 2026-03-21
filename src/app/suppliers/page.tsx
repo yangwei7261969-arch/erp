@@ -1,0 +1,600 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Building2,
+  Plus,
+  Search,
+  Phone,
+  Mail,
+  MapPin,
+  Star,
+  Edit,
+  Trash2,
+  Eye,
+} from 'lucide-react';
+
+interface Supplier {
+  id: string;
+  code: string;
+  name: string;
+  short_name: string | null;
+  type: string | null;
+  category: string | null;
+  contact: string;
+  phone: string;
+  email: string | null;
+  address: string | null;
+  tax_no: string | null;
+  bank_name: string | null;
+  bank_account: string | null;
+  payment_terms: string | null;
+  credit_limit: number | null;
+  balance: number;
+  rating: number;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export default function SuppliersPage() {
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [isEdit, setIsEdit] = useState(false);
+
+  const [form, setForm] = useState({
+    name: '',
+    short_name: '',
+    type: '',
+    category: '',
+    contact: '',
+    phone: '',
+    email: '',
+    address: '',
+    tax_no: '',
+    bank_name: '',
+    bank_account: '',
+    payment_terms: '',
+    credit_limit: '',
+    rating: 5,
+    notes: '',
+  });
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, [page]);
+
+  const fetchSuppliers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/suppliers?page=${page}&pageSize=20`);
+      const result = await response.json();
+      if (result.success) {
+        setSuppliers(result.data);
+        setTotal(result.total);
+      }
+    } catch (error) {
+      console.error('Failed to fetch suppliers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = () => {
+    if (!searchTerm) {
+      fetchSuppliers();
+      return;
+    }
+    const filtered = suppliers.filter(
+      (s) =>
+        s.name.includes(searchTerm) ||
+        s.code.includes(searchTerm) ||
+        s.contact?.includes(searchTerm)
+    );
+    setSuppliers(filtered);
+  };
+
+  const handleOpenDialog = (supplier?: Supplier) => {
+    if (supplier) {
+      setIsEdit(true);
+      setSelectedSupplier(supplier);
+      setForm({
+        name: supplier.name,
+        short_name: supplier.short_name || '',
+        type: supplier.type || '',
+        category: supplier.category || '',
+        contact: supplier.contact || '',
+        phone: supplier.phone || '',
+        email: supplier.email || '',
+        address: supplier.address || '',
+        tax_no: supplier.tax_no || '',
+        bank_name: supplier.bank_name || '',
+        bank_account: supplier.bank_account || '',
+        payment_terms: supplier.payment_terms || '',
+        credit_limit: supplier.credit_limit?.toString() || '',
+        rating: supplier.rating || 5,
+        notes: supplier.notes || '',
+      });
+    } else {
+      setIsEdit(false);
+      setSelectedSupplier(null);
+      setForm({
+        name: '',
+        short_name: '',
+        type: '',
+        category: '',
+        contact: '',
+        phone: '',
+        email: '',
+        address: '',
+        tax_no: '',
+        bank_name: '',
+        bank_account: '',
+        payment_terms: '',
+        credit_limit: '',
+        rating: 5,
+        notes: '',
+      });
+    }
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      const url = isEdit ? `/api/suppliers?id=${selectedSupplier?.id}` : '/api/suppliers';
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : null,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setDialogOpen(false);
+        fetchSuppliers();
+        alert(isEdit ? '更新成功！' : '创建成功！');
+      } else {
+        alert(result.error || '操作失败');
+      }
+    } catch (error) {
+      alert('操作失败');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定要删除此供应商吗？')) return;
+
+    try {
+      const response = await fetch(`/api/suppliers?id=${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        fetchSuppliers();
+        alert('删除成功！');
+      } else {
+        alert(result.error || '删除失败');
+      }
+    } catch (error) {
+      alert('删除失败');
+    }
+  };
+
+  const handleViewDetail = (supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    setDetailDialogOpen(true);
+  };
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`h-4 w-4 ${i < rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
+      />
+    ));
+  };
+
+  const getTypeBadge = (type: string | null) => {
+    if (!type) return null;
+    const types: Record<string, { label: string; className: string }> = {
+      material: { label: '原料供应商', className: 'bg-blue-100 text-blue-800' },
+      accessory: { label: '辅料供应商', className: 'bg-green-100 text-green-800' },
+      processing: { label: '加工厂', className: 'bg-orange-100 text-orange-800' },
+      logistics: { label: '物流公司', className: 'bg-purple-100 text-purple-800' },
+    };
+    const t = types[type] || { label: type, className: 'bg-gray-100 text-gray-800' };
+    return <Badge className={t.className}>{t.label}</Badge>;
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Building2 className="h-8 w-8" />
+            供应商管理
+          </h1>
+          <p className="text-gray-500 mt-1">管理供应商信息、评级与账户</p>
+        </div>
+        <Button onClick={() => handleOpenDialog()}>
+          <Plus className="h-4 w-4 mr-2" />
+          新增供应商
+        </Button>
+      </div>
+
+      {/* 搜索栏 */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex gap-4">
+            <Input
+              placeholder="搜索供应商名称、编码或联系人..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <Button variant="outline" onClick={handleSearch}>
+              <Search className="h-4 w-4 mr-2" />
+              搜索
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 供应商列表 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>供应商列表 ({total})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">加载中...</div>
+          ) : suppliers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">暂无供应商数据</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>编码</TableHead>
+                  <TableHead>名称</TableHead>
+                  <TableHead>类型</TableHead>
+                  <TableHead>联系人</TableHead>
+                  <TableHead>电话</TableHead>
+                  <TableHead>评级</TableHead>
+                  <TableHead>余额</TableHead>
+                  <TableHead className="text-right">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {suppliers.map((supplier) => (
+                  <TableRow key={supplier.id}>
+                    <TableCell className="font-mono">{supplier.code}</TableCell>
+                    <TableCell className="font-medium">{supplier.name}</TableCell>
+                    <TableCell>{getTypeBadge(supplier.type)}</TableCell>
+                    <TableCell>{supplier.contact}</TableCell>
+                    <TableCell>{supplier.phone}</TableCell>
+                    <TableCell>
+                      <div className="flex">{renderStars(supplier.rating)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={supplier.balance < 0 ? 'text-red-600' : ''}>
+                        ¥{supplier.balance.toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleViewDetail(supplier)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleOpenDialog(supplier)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-600"
+                          onClick={() => handleDelete(supplier.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 新增/编辑弹窗 */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{isEdit ? '编辑供应商' : '新增供应商'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label>名称 *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>简称</Label>
+              <Input
+                value={form.short_name}
+                onChange={(e) => setForm({ ...form, short_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>类型</Label>
+              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="material">原料供应商</SelectItem>
+                  <SelectItem value="accessory">辅料供应商</SelectItem>
+                  <SelectItem value="processing">加工厂</SelectItem>
+                  <SelectItem value="logistics">物流公司</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>分类</Label>
+              <Input
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                placeholder="如：面料、辅料、包装等"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>联系人 *</Label>
+              <Input
+                value={form.contact}
+                onChange={(e) => setForm({ ...form, contact: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>电话 *</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>邮箱</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>地址</Label>
+              <Input
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>税号</Label>
+              <Input
+                value={form.tax_no}
+                onChange={(e) => setForm({ ...form, tax_no: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>开户银行</Label>
+              <Input
+                value={form.bank_name}
+                onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>银行账号</Label>
+              <Input
+                value={form.bank_account}
+                onChange={(e) => setForm({ ...form, bank_account: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>付款条款</Label>
+              <Input
+                value={form.payment_terms}
+                onChange={(e) => setForm({ ...form, payment_terms: e.target.value })}
+                placeholder="如：月结30天"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>信用额度</Label>
+              <Input
+                type="number"
+                value={form.credit_limit}
+                onChange={(e) => setForm({ ...form, credit_limit: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>评级</Label>
+              <Select
+                value={form.rating.toString()}
+                onValueChange={(v) => setForm({ ...form, rating: parseInt(v) })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[5, 4, 3, 2, 1].map((n) => (
+                    <SelectItem key={n} value={n.toString()}>
+                      <div className="flex">{renderStars(n)}</div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2 space-y-2">
+              <Label>备注</Label>
+              <Input
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSave}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 详情弹窗 */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              供应商详情
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedSupplier && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xl font-bold">{selectedSupplier.name}</div>
+                  <div className="text-gray-500">{selectedSupplier.code}</div>
+                </div>
+                <div className="flex">{renderStars(selectedSupplier.rating)}</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-500">类型：</span>
+                  {getTypeBadge(selectedSupplier.type)}
+                </div>
+                <div>
+                  <span className="text-gray-500">分类：</span>
+                  {selectedSupplier.category || '-'}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Phone className="h-4 w-4 text-gray-400" />
+                  {selectedSupplier.phone}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Mail className="h-4 w-4 text-gray-400" />
+                  {selectedSupplier.email || '-'}
+                </div>
+                <div className="col-span-2 flex items-center gap-1">
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                  {selectedSupplier.address || '-'}
+                </div>
+                <div>
+                  <span className="text-gray-500">开户银行：</span>
+                  {selectedSupplier.bank_name || '-'}
+                </div>
+                <div>
+                  <span className="text-gray-500">银行账号：</span>
+                  {selectedSupplier.bank_account || '-'}
+                </div>
+                <div>
+                  <span className="text-gray-500">付款条款：</span>
+                  {selectedSupplier.payment_terms || '-'}
+                </div>
+                <div>
+                  <span className="text-gray-500">信用额度：</span>
+                  ¥{selectedSupplier.credit_limit?.toLocaleString() || '未设置'}
+                </div>
+                <div>
+                  <span className="text-gray-500">当前余额：</span>
+                  <span className={selectedSupplier.balance < 0 ? 'text-red-600 font-bold' : ''}>
+                    ¥{selectedSupplier.balance.toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500">创建时间：</span>
+                  {new Date(selectedSupplier.created_at).toLocaleDateString()}
+                </div>
+              </div>
+
+              {selectedSupplier.notes && (
+                <div className="pt-2 border-t">
+                  <div className="text-gray-500 text-sm">备注：</div>
+                  <div className="text-sm">{selectedSupplier.notes}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+              关闭
+            </Button>
+            <Button onClick={() => {
+              setDetailDialogOpen(false);
+              handleOpenDialog(selectedSupplier!);
+            }}>
+              编辑
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
