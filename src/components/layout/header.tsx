@@ -15,13 +15,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Search, Settings, LogOut, User, Moon, Sun, Menu } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   onMenuClick?: () => void;
   isMobile?: boolean;
+  mobileMenuOpen?: boolean;
 }
 
-export function Header({ onMenuClick, isMobile }: HeaderProps) {
+export function Header({ onMenuClick, isMobile, mobileMenuOpen }: HeaderProps) {
   const { theme, setTheme } = useTheme();
 
   return (
@@ -30,7 +32,12 @@ export function Header({ onMenuClick, isMobile }: HeaderProps) {
       <div className="flex items-center gap-2 md:gap-4">
         {/* 移动端菜单按钮 */}
         {isMobile && (
-          <Button variant="ghost" size="icon" onClick={onMenuClick}>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onMenuClick}
+            className={cn(mobileMenuOpen && 'bg-secondary')}
+          >
             <Menu className="h-5 w-5" />
           </Button>
         )}
