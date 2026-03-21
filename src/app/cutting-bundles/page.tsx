@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -33,6 +34,8 @@ import {
   FileText,
   Layers,
   AlertCircle,
+  Send,
+  Building2,
 } from 'lucide-react';
 
 interface CuttingBundle {
@@ -44,6 +47,7 @@ interface CuttingBundle {
   status: string;
   qr_code: string;
   current_process_id?: string;
+  cutting_order_id?: string;
   created_at: string;
   cutting_orders?: {
     order_no: string;
@@ -69,17 +73,42 @@ interface Process {
   category: string;
 }
 
+interface Supplier {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  supplier_level: number;
+  contact: string;
+  phone: string;
+}
+
 export default function CuttingBundlesPage() {
   const [bundles, setBundles] = useState<CuttingBundle[]>([]);
   const [cuttingOrders, setCuttingOrders] = useState<CuttingOrder[]>([]);
   const [processes, setProcesses] = useState<Process[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedOrderId, setSelectedOrderId] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [outsourceDialogOpen, setOutsourceDialogOpen] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState<CuttingBundle | null>(null);
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  
+  // 外发表单
+  const [outsourceForm, setOutsourceForm] = useState({
+    supplier_id: '',
+    supplier_level: 1,
+    quantity: 0,
+    process_type: '',
+    process_name: '',
+    send_date: new Date().toISOString().split('T')[0],
+    expected_return_date: '',
+    unit_price: 0,
+    notes: '',
+  });
   const [printQuantity, setPrintQuantity] = useState(1);
 
   // 选中的裁床单
@@ -98,6 +127,7 @@ export default function CuttingBundlesPage() {
     fetchBundles();
     fetchCuttingOrders();
     fetchProcesses();
+    fetchSuppliers();
   }, [selectedOrderId, filterStatus]);
 
   const fetchBundles = async () => {
@@ -117,6 +147,18 @@ export default function CuttingBundlesPage() {
       console.error('Failed to fetch bundles:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await fetch('/api/suppliers?status=approved&pageSize=100');
+      const data = await res.json();
+      if (data.success) {
+        setSuppliers(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch suppliers:', error);
     }
   };
 
@@ -238,6 +280,64 @@ export default function CuttingBundlesPage() {
     }
   };
 
+  const handleOpenOutsource = (bundle: CuttingBundle) => {
+    setSelectedBundle(bundle);
+    setOutsourceForm({
+      supplier_id: '',
+      supplier_level: 1,
+      quantity: bundle.quantity,
+      process_type: '',
+      process_name: '',
+      send_date: new Date().toISOString().split('T')[0],
+      expected_return_date: '',
+      unit_price: 0,
+      notes: '',
+    });
+    setOutsourceDialogOpen(true);
+  };
+
+  const handleOutsource = async () => {
+    if (!selectedBundle) return;
+    if (!outsourceForm.supplier_id) {
+      alert('请选择供应商');
+      return;
+    }
+    if (!outsourceForm.process_type) {
+      alert('请选择外发工序');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/bundle-outsource', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bundle_id: selectedBundle.id,
+          cutting_order_id: selectedBundle.cutting_order_id,
+          ...outsourceForm,
+          style_no: selectedBundle.cutting_orders?.style_no,
+          size: selectedBundle.size,
+          color: selectedBundle.color,
+          process_name: outsourceForm.process_type === 'sewing' ? '缝制' :
+                        outsourceForm.process_type === 'embroidery' ? '刺绣' :
+                        outsourceForm.process_type === 'printing' ? '印花' :
+                        outsourceForm.process_type === 'washing' ? '水洗' : '其他',
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('外发成功！');
+        setOutsourceDialogOpen(false);
+        fetchBundles();
+      } else {
+        alert(data.error || '外发失败');
+      }
+    } catch (error) {
+      alert('外发失败');
+    }
+  };
+
   const handlePrintTickets = () => {
     if (!selectedBundle) return;
     
@@ -310,6 +410,7 @@ export default function CuttingBundlesPage() {
     const config: Record<string, { label: string; className: string }> = {
       pending: { label: '待处理', className: 'bg-gray-100 text-gray-800' },
       in_progress: { label: '生产中', className: 'bg-blue-100 text-blue-800' },
+      outsourced: { label: '外发中', className: 'bg-orange-100 text-orange-800' },
       completed: { label: '已完成', className: 'bg-green-100 text-green-800' },
     };
     const { label, className } = config[status] || config.pending;
@@ -477,6 +578,16 @@ export default function CuttingBundlesPage() {
                           <QrCode className="h-4 w-4 mr-1" />
                           追溯
                         </Button>
+                        {bundle.status === 'pending' && (
+                          <Button 
+                            size="sm" 
+                            variant="secondary"
+                            onClick={() => handleOpenOutsource(bundle)}
+                          >
+                            <Send className="h-4 w-4 mr-1" />
+                            外发
+                          </Button>
+                        )}
                         <Button 
                           size="sm" 
                           variant="destructive"
@@ -684,6 +795,133 @@ export default function CuttingBundlesPage() {
                 <Button onClick={handlePrintTickets}>
                   <Printer className="h-4 w-4 mr-2" />
                   打印
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 外发对话框 */}
+      <Dialog open={outsourceDialogOpen} onOpenChange={setOutsourceDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              外发加工
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedBundle && (
+            <div className="space-y-4 py-4">
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><strong>扎号：</strong>{selectedBundle.bundle_no}</div>
+                  <div><strong>数量：</strong>{selectedBundle.quantity}件</div>
+                  <div><strong>颜色：</strong>{selectedBundle.color}</div>
+                  <div><strong>尺码：</strong>{selectedBundle.size}</div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>供应商 *</Label>
+                  <Select 
+                    value={outsourceForm.supplier_id} 
+                    onValueChange={(v) => setOutsourceForm({...outsourceForm, supplier_id: v})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择供应商" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map(s => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name} ({s.supplier_level}级)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>外发工序 *</Label>
+                  <Select 
+                    value={outsourceForm.process_type} 
+                    onValueChange={(v) => setOutsourceForm({...outsourceForm, process_type: v})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择工序" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sewing">缝制</SelectItem>
+                      <SelectItem value="embroidery">刺绣</SelectItem>
+                      <SelectItem value="printing">印花</SelectItem>
+                      <SelectItem value="washing">水洗</SelectItem>
+                      <SelectItem value="other">其他</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>外发数量</Label>
+                  <Input 
+                    type="number"
+                    value={outsourceForm.quantity}
+                    onChange={(e) => setOutsourceForm({...outsourceForm, quantity: parseInt(e.target.value) || 0})}
+                    max={selectedBundle.quantity}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>单价 (元)</Label>
+                  <Input 
+                    type="number"
+                    value={outsourceForm.unit_price}
+                    onChange={(e) => setOutsourceForm({...outsourceForm, unit_price: parseFloat(e.target.value) || 0})}
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>发送日期</Label>
+                  <Input 
+                    type="date"
+                    value={outsourceForm.send_date}
+                    onChange={(e) => setOutsourceForm({...outsourceForm, send_date: e.target.value})}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>预计回货日期</Label>
+                  <Input 
+                    type="date"
+                    value={outsourceForm.expected_return_date}
+                    onChange={(e) => setOutsourceForm({...outsourceForm, expected_return_date: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>备注</Label>
+                <Textarea 
+                  value={outsourceForm.notes}
+                  onChange={(e) => setOutsourceForm({...outsourceForm, notes: e.target.value})}
+                  placeholder="外发备注信息..."
+                  rows={2}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" onClick={() => setOutsourceDialogOpen(false)}>
+                  取消
+                </Button>
+                <Button onClick={handleOutsource}>
+                  <Send className="h-4 w-4 mr-2" />
+                  确认外发
                 </Button>
               </div>
             </div>

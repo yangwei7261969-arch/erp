@@ -207,6 +207,12 @@ const menuGroups: MenuGroup[] = [
         roles: ['production_manager', 'boss'],
       },
       {
+        title: '外发跟踪',
+        icon: Truck,
+        href: '/outsource-tracking',
+        roles: ['production_manager', 'boss'],
+      },
+      {
         title: '供应商管理',
         icon: Building2,
         href: '/suppliers',

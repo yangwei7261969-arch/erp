@@ -62,6 +62,7 @@ interface Supplier {
   short_name: string | null;
   type: string | null;
   category: string | null;
+  level: number;
   contact: string;
   phone: string;
   email: string | null;
@@ -101,6 +102,7 @@ export default function SuppliersPage() {
     short_name: '',
     type: '',
     category: '',
+    level: 1,
     contact: '',
     phone: '',
     email: '',
@@ -166,6 +168,7 @@ export default function SuppliersPage() {
         short_name: supplier.short_name || '',
         type: supplier.type || '',
         category: supplier.category || '',
+        level: supplier.level || 1,
         contact: supplier.contact || '',
         phone: supplier.phone || '',
         email: supplier.email || '',
@@ -186,6 +189,7 @@ export default function SuppliersPage() {
         short_name: '',
         type: '',
         category: '',
+        level: 1,
         contact: '',
         phone: '',
         email: '',
@@ -445,6 +449,7 @@ export default function SuppliersPage() {
                       <TableHead>编码</TableHead>
                       <TableHead>名称</TableHead>
                       <TableHead>类型</TableHead>
+                      <TableHead>等级</TableHead>
                       <TableHead>联系人</TableHead>
                       <TableHead>电话</TableHead>
                       <TableHead>状态</TableHead>
@@ -458,6 +463,13 @@ export default function SuppliersPage() {
                         <TableCell className="font-mono">{supplier.code}</TableCell>
                         <TableCell className="font-medium">{supplier.name}</TableCell>
                         <TableCell>{getTypeBadge(supplier.type)}</TableCell>
+                        <TableCell>
+                          <Badge className={supplier.level === 1 ? 'bg-yellow-100 text-yellow-800' : 
+                                           supplier.level === 2 ? 'bg-gray-100 text-gray-800' : 
+                                           'bg-orange-100 text-orange-800'}>
+                            {supplier.level || 1}级
+                          </Badge>
+                        </TableCell>
                         <TableCell>{supplier.contact}</TableCell>
                         <TableCell>{supplier.phone}</TableCell>
                         <TableCell>{getStatusBadge(supplier.status)}</TableCell>
@@ -567,6 +579,20 @@ export default function SuppliersPage() {
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
                 placeholder="如：面料、辅料、包装等"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>供应商等级</Label>
+              <Select value={form.level?.toString() || '1'} onValueChange={(v) => setForm({ ...form, level: parseInt(v) })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择等级" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">一级供应商（核心）</SelectItem>
+                  <SelectItem value="2">二级供应商（重要）</SelectItem>
+                  <SelectItem value="3">三级供应商（一般）</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">一级为核心供应商，二级为重要供应商，三级为一般供应商</p>
             </div>
             <div className="space-y-2">
               <Label>联系人 *</Label>
@@ -694,6 +720,14 @@ export default function SuppliersPage() {
                 <div>
                   <span className="text-gray-500">类型：</span>
                   {getTypeBadge(selectedSupplier.type)}
+                </div>
+                <div>
+                  <span className="text-gray-500">等级：</span>
+                  <Badge className={selectedSupplier.level === 1 ? 'bg-yellow-100 text-yellow-800 ml-1' : 
+                                   selectedSupplier.level === 2 ? 'bg-gray-100 text-gray-800 ml-1' : 
+                                   'bg-orange-100 text-orange-800 ml-1'}>
+                    {selectedSupplier.level || 1}级
+                  </Badge>
                 </div>
                 <div>
                   <span className="text-gray-500">分类：</span>
