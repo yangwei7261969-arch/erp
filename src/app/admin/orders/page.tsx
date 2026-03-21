@@ -195,10 +195,11 @@ export default function AdminOrdersPage() {
     if (!confirm('确定要取消此订单吗？')) return;
 
     try {
-      const response = await fetch(`/api/production-orders/${orderId}`, {
+      const response = await fetch('/api/production-orders', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: orderId,
           status: 'cancelled',
         }),
       });
@@ -216,10 +217,11 @@ export default function AdminOrdersPage() {
     if (!confirm('确定要恢复此订单吗？')) return;
 
     try {
-      const response = await fetch(`/api/production-orders/${order.id}`, {
+      const response = await fetch('/api/production-orders', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: order.id,
           status: 'pending',
         }),
       });

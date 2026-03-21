@@ -116,6 +116,7 @@ export default function FinishingPage() {
 
       // 更新订单状态
       const updateData: any = {
+        id: selectedTask.id,
         completed_quantity: selectedTask.completed_quantity + completeForm.quantity,
       };
 
@@ -124,7 +125,7 @@ export default function FinishingPage() {
         updateData.actual_end_date = new Date().toISOString().split('T')[0];
       }
 
-      const response = await fetch(`/api/production-orders/${selectedTask.id}`, {
+      const response = await fetch('/api/production-orders', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
