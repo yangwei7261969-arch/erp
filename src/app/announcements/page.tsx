@@ -1,17 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -20,21 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Bell,
   Plus,
@@ -42,21 +26,14 @@ import {
   Megaphone,
   AlertCircle,
   Info,
-  Loader2,
-  Trash2,
-  Edit,
 } from 'lucide-react';
 
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  type: string;
-  is_published: boolean;
-  publish_at: string | null;
-  expire_at: string | null;
-  created_at: string;
-}
+const announcements = [
+  { id: 1, title: '春节放假通知', type: 'important', content: '2024年春节放假时间为...', date: '2024-01-15', status: 'published' },
+  { id: 2, title: '系统升级公告', type: 'system', content: '系统将于本周六进行升级...', date: '2024-01-14', status: 'published' },
+  { id: 3, title: '新员工入职培训', type: 'general', content: '本周五下午进行新员工培训...', date: '2024-01-13', status: 'published' },
+  { id: 4, title: '安全生产提醒', type: 'urgent', content: '请各部门注意安全生产...', date: '2024-01-12', status: 'draft' },
+];
 
 const typeConfig: Record<string, { label: string; icon: typeof Info; className: string }> = {
   important: { label: '重要', icon: AlertCircle, className: 'bg-orange-500' },
@@ -66,100 +43,6 @@ const typeConfig: Record<string, { label: string; icon: typeof Info; className: 
 };
 
 export default function AnnouncementsPage() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState('all');
-  
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-    type: 'general',
-    is_published: false,
-  });
-
-  const fetchAnnouncements = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (typeFilter !== 'all') {
-        params.append('type', typeFilter);
-      }
-      
-      const response = await fetch(`/api/announcements?${params}`);
-      const result = await response.json();
-      
-      if (result.success) {
-        setAnnouncements(result.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch announcements:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAnnouncements();
-  }, [typeFilter]);
-
-  const handleSubmit = async () => {
-    if (!formData.title || !formData.content) {
-      alert('请填写标题和内容');
-      return;
-    }
-    
-    setSubmitting(true);
-    try {
-      const response = await fetch('/api/announcements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const result = await response.json();
-      
-      if (result.success) {
-        setDialogOpen(false);
-        setFormData({ title: '', content: '', type: 'general', is_published: false });
-        fetchAnnouncements();
-        alert('公告发布成功！');
-      }
-    } catch (error) {
-      console.error('Submit error:', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('确定要删除此公告吗？')) return;
-    
-    try {
-      const response = await fetch(`/api/announcements?id=${id}`, { method: 'DELETE' });
-      const result = await response.json();
-      
-      if (result.success) {
-        fetchAnnouncements();
-      }
-    } catch (error) {
-      console.error('Delete error:', error);
-    }
-  };
-
-  const handleView = (announcement: Announcement) => {
-    setSelectedAnnouncement(announcement);
-    setViewDialogOpen(true);
-  };
-
-  // 统计
-  const publishedCount = announcements.filter(a => a.is_published).length;
-  const draftCount = announcements.filter(a => !a.is_published).length;
-  const urgentCount = announcements.filter(a => a.type === 'urgent').length;
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -167,7 +50,7 @@ export default function AnnouncementsPage() {
           <h1 className="text-3xl font-bold">公告中心</h1>
           <p className="text-muted-foreground">发布和管理公司公告</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button>
           <Plus className="mr-2 h-4 w-4" />
           发布公告
         </Button>
@@ -181,7 +64,7 @@ export default function AnnouncementsPage() {
             <Bell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{publishedCount}</div>
+            <div className="text-2xl font-bold">45</div>
             <p className="text-xs text-muted-foreground">条公告</p>
           </CardContent>
         </Card>
@@ -191,7 +74,7 @@ export default function AnnouncementsPage() {
             <Bell className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-500">{draftCount}</div>
+            <div className="text-2xl font-bold text-orange-500">3</div>
             <p className="text-xs text-muted-foreground">草稿</p>
           </CardContent>
         </Card>
@@ -201,171 +84,108 @@ export default function AnnouncementsPage() {
             <AlertCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-500">{urgentCount}</div>
+            <div className="text-2xl font-bold text-red-500">1</div>
             <p className="text-xs text-muted-foreground">条</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">总公告数</CardTitle>
+            <CardTitle className="text-sm font-medium">本月新增</CardTitle>
             <Megaphone className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">{announcements.length}</div>
+            <div className="text-2xl font-bold text-green-500">8</div>
             <p className="text-xs text-muted-foreground">条公告</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="all" value={typeFilter} onValueChange={setTypeFilter}>
+      <Tabs defaultValue="all">
         <TabsList>
           <TabsTrigger value="all">全部公告</TabsTrigger>
           <TabsTrigger value="important">重要公告</TabsTrigger>
-          <TabsTrigger value="urgent">紧急公告</TabsTrigger>
           <TabsTrigger value="system">系统公告</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={typeFilter}>
+        <TabsContent value="all">
           <Card>
             <CardContent className="pt-6">
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : announcements.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  暂无公告
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>标题</TableHead>
-                      <TableHead>类型</TableHead>
-                      <TableHead>内容预览</TableHead>
-                      <TableHead>发布日期</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead>操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {announcements.map((announcement) => {
-                      const config = typeConfig[announcement.type] || typeConfig.general;
-                      return (
-                        <TableRow key={announcement.id}>
-                          <TableCell className="font-medium">{announcement.title}</TableCell>
-                          <TableCell>
-                            <Badge className={config.className}>
-                              <config.icon className="mr-1 h-3 w-3" />
-                              {config.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate">{announcement.content}</TableCell>
-                          <TableCell>{announcement.created_at?.slice(0, 10)}</TableCell>
-                          <TableCell>
-                            <Badge variant={announcement.is_published ? 'default' : 'secondary'}>
-                              {announcement.is_published ? '已发布' : '草稿'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => handleView(announcement)}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(announcement.id)}>
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>标题</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead>内容预览</TableHead>
+                    <TableHead>发布日期</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {announcements.map((announcement) => {
+                    const config = typeConfig[announcement.type];
+                    return (
+                      <TableRow key={announcement.id}>
+                        <TableCell className="font-medium">{announcement.title}</TableCell>
+                        <TableCell>
+                          <Badge className={config.className}>
+                            <config.icon className="mr-1 h-3 w-3" />
+                            {config.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">{announcement.content}</TableCell>
+                        <TableCell>{announcement.date}</TableCell>
+                        <TableCell>
+                          <Badge variant={announcement.status === 'published' ? 'default' : 'secondary'}>
+                            {announcement.status === 'published' ? '已发布' : '草稿'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="important">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {announcements.filter(a => a.type === 'important' || a.type === 'urgent').map((announcement) => (
+                  <div key={announcement.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium">{announcement.title}</h3>
+                      <Badge className={typeConfig[announcement.type].className}>
+                        {typeConfig[announcement.type].label}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{announcement.content}</p>
+                    <p className="text-xs text-muted-foreground mt-2">{announcement.date}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="system">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-12 text-muted-foreground">
+                系统公告列表...
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* 发布公告弹窗 */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>发布公告</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>标题 *</Label>
-              <Input
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="输入公告标题"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>类型</Label>
-              <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="选择类型" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general">普通</SelectItem>
-                  <SelectItem value="important">重要</SelectItem>
-                  <SelectItem value="urgent">紧急</SelectItem>
-                  <SelectItem value="system">系统</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>内容 *</Label>
-              <Textarea
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                placeholder="输入公告内容"
-                rows={5}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="is_published"
-                checked={formData.is_published}
-                onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-              />
-              <Label htmlFor="is_published">立即发布</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>取消</Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              发布
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 查看公告弹窗 */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{selectedAnnouncement?.title}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Badge className={typeConfig[selectedAnnouncement?.type || 'general']?.className}>
-                {typeConfig[selectedAnnouncement?.type || 'general']?.label}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {selectedAnnouncement?.created_at?.slice(0, 10)}
-              </span>
-            </div>
-            <p className="whitespace-pre-wrap">{selectedAnnouncement?.content}</p>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

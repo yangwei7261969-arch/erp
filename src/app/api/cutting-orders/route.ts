@@ -80,65 +80,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // 如果关联了生产订单，更新生产订单的完成数量
+    if (body.production_order_id && body.completed_qty > 0) {
+      await client.rpc('update_production_completed_qty', {
+        order_id: body.production_order_id,
+        qty: body.completed_qty,
+      });
+    }
+
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('Create cutting order error:', error);
     return NextResponse.json({ error: '创建失败' }, { status: 500 });
-  }
-}
-
-// 更新裁床单
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { id, status, completed_qty, defective_qty, ...otherData } = body;
-    const client = getSupabaseClient();
-
-    const updateData: Record<string, any> = {
-      ...otherData,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (status !== undefined) {
-      updateData.status = status;
-    }
-    if (completed_qty !== undefined) {
-      updateData.completed_qty = completed_qty;
-    }
-    if (defective_qty !== undefined) {
-      updateData.defective_qty = defective_qty;
-    }
-
-    const { data, error } = await client
-      .from('cutting_orders')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // 如果关联了生产订单，更新生产订单的完成数量
-    if (data.production_order_id && completed_qty !== undefined) {
-      // 计算该生产订单所有裁床单的总完成数
-      const { data: allCuttingOrders } = await client
-        .from('cutting_orders')
-        .select('completed_qty')
-        .eq('production_order_id', data.production_order_id);
-
-      const totalCompleted = allCuttingOrders?.reduce((sum, o) => sum + (o.completed_qty || 0), 0) || 0;
-
-      await client
-        .from('production_orders')
-        .update({ completed_quantity: totalCompleted })
-        .eq('id', data.production_order_id);
-    }
-
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    console.error('Update cutting order error:', error);
-    return NextResponse.json({ error: '更新失败' }, { status: 500 });
   }
 }
