@@ -7,13 +7,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const status = searchParams.get('status');
 
     const client = getSupabaseClient();
     
-    const { data, error, count } = await client
+    let query = client
       .from('suppliers')
       .select('*', { count: 'exact' })
-      .eq('is_active', true)
+      .eq('is_active', true);
+    
+    // 状态筛选
+    if (status) {
+      query = query.eq('status', status);
+    }
+    
+    const { data, error, count } = await query
       .order('created_at', { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
 
