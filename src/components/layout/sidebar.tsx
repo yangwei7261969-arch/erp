@@ -291,6 +291,12 @@ const menuGroups: MenuGroup[] = [
         roles: ['all'],
       },
       {
+        title: '权限管理',
+        icon: Shield,
+        href: '/permissions',
+        roles: ['boss', 'factory_admin'],
+      },
+      {
         title: '系统设置',
         icon: Settings,
         href: '/settings',
