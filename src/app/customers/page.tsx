@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -22,11 +21,11 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -34,188 +33,174 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus,
-  Search,
-  Filter,
-  Download,
   Users,
-  Star,
-  MoreHorizontal,
-  Eye,
+  Search,
+  Plus,
   Edit,
-  Phone,
-  Mail,
-  Building,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Star,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
-// Mock data
-const customers = [
-  {
-    id: 'C001',
-    code: 'CUS20240001',
-    name: '广州服饰有限公司',
-    shortName: '广州服饰',
-    level: 'vip',
-    contact: '张经理',
-    phone: '138****1234',
-    email: 'zhang@gz-clothing.com',
-    balance: 150000,
-    orderCount: 45,
-    status: 'active',
-  },
-  {
-    id: 'C002',
-    code: 'CUS20240002',
-    name: '深圳时尚集团',
-    shortName: '深圳时尚',
-    level: 'important',
-    contact: '李总',
-    phone: '139****5678',
-    email: 'li@sz-fashion.com',
-    balance: 280000,
-    orderCount: 78,
-    status: 'active',
-  },
-  {
-    id: 'C003',
-    code: 'CUS20240003',
-    name: '东莞服装厂',
-    shortName: '东莞服装',
-    level: 'normal',
-    contact: '王主管',
-    phone: '137****9012',
-    email: 'wang@dg-garment.com',
-    balance: 45000,
-    orderCount: 12,
-    status: 'active',
-  },
-  {
-    id: 'C004',
-    code: 'CUS20240004',
-    name: '佛山纺织公司',
-    shortName: '佛山纺织',
-    level: 'important',
-    contact: '赵经理',
-    phone: '136****3456',
-    email: 'zhao@fs-textile.com',
-    balance: 120000,
-    orderCount: 34,
-    status: 'inactive',
-  },
-];
+interface Customer {
+  id: string;
+  code: string;
+  name: string;
+  short_name: string | null;
+  type: string;
+  level: string;
+  contact: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  balance: number | null;
+  is_active: boolean;
+  created_at: string;
+}
 
-const levelMap: Record<string, { label: string; className: string }> = {
-  vip: { label: 'VIP客户', className: 'bg-yellow-500' },
-  important: { label: '重要客户', className: 'bg-blue-500' },
-  normal: { label: '普通客户', className: 'bg-gray-500' },
+const levelConfig: Record<string, { label: string; color: string }> = {
+  vip: { label: 'VIP客户', color: 'bg-yellow-500' },
+  primary: { label: '重点客户', color: 'bg-blue-500' },
+  normal: { label: '普通客户', color: 'bg-gray-500' },
 };
 
 export default function CustomersPage() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [levelFilter, setLevelFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pageSize] = useState(10);
+  
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'domestic',
+    level: 'normal',
+    contact: '',
+    phone: '',
+    email: '',
+    address: '',
+  });
+
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+        ...(levelFilter !== 'all' && { level: levelFilter }),
+        ...(search && { search }),
+      });
+      
+      const response = await fetch(`/api/customers?${params}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setCustomers(result.data);
+        setTotal(result.total);
+      }
+    } catch (error) {
+      console.error('Failed to fetch customers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [page, levelFilter, search]);
+
+  const handleOpenDialog = (customer?: Customer) => {
+    if (customer) {
+      setEditingCustomer(customer);
+      setFormData({
+        name: customer.name,
+        type: customer.type,
+        level: customer.level,
+        contact: customer.contact || '',
+        phone: customer.phone || '',
+        email: customer.email || '',
+        address: customer.address || '',
+      });
+    } else {
+      setEditingCustomer(null);
+      setFormData({
+        name: '',
+        type: 'domestic',
+        level: 'normal',
+        contact: '',
+        phone: '',
+        email: '',
+        address: '',
+      });
+    }
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      if (editingCustomer) {
+        const response = await fetch(`/api/customers/${editingCustomer.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        const result = await response.json();
+        if (result.success) {
+          setDialogOpen(false);
+          fetchCustomers();
+        }
+      } else {
+        const response = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        const result = await response.json();
+        if (result.success) {
+          setDialogOpen(false);
+          fetchCustomers();
+        }
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div className="p-6 space-y-6">
-      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">客户管理</h1>
-          <p className="text-muted-foreground">管理客户信息、评级和账单关联</p>
+          <p className="text-muted-foreground">管理客户信息和评级</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            导出
-          </Button>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                新增客户
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>新增客户</DialogTitle>
-                <DialogDescription>填写客户基本信息</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>客户编码</Label>
-                    <Input placeholder="自动生成" disabled />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>客户简称</Label>
-                    <Input placeholder="客户简称" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>客户全称</Label>
-                  <Input placeholder="客户全称" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>联系人</Label>
-                    <Input placeholder="联系人姓名" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>联系电话</Label>
-                    <Input placeholder="联系电话" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>邮箱</Label>
-                    <Input type="email" placeholder="邮箱地址" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>客户等级</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择等级" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="vip">VIP客户</SelectItem>
-                        <SelectItem value="important">重要客户</SelectItem>
-                        <SelectItem value="normal">普通客户</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>地址</Label>
-                  <Textarea placeholder="客户地址" />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline">取消</Button>
-                <Button>保存</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Button onClick={() => handleOpenDialog()}>
+          <Plus className="mr-2 h-4 w-4" />
+          新增客户
+        </Button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">客户总数</CardTitle>
+            <CardTitle className="text-sm font-medium">总客户数</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">156</div>
-            <p className="text-xs text-muted-foreground">活跃客户 128</p>
+            <div className="text-2xl font-bold">{total}</div>
           </CardContent>
         </Card>
         <Card>
@@ -224,158 +209,241 @@ export default function CustomersPage() {
             <Star className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">23</div>
-            <p className="text-xs text-muted-foreground">占比 14.7%</p>
+            <div className="text-2xl font-bold text-yellow-500">
+              {customers.filter(c => c.level === 'vip').length}
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">应收账款</CardTitle>
-            <Building className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium">重点客户</CardTitle>
+            <Star className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">¥1.2M</div>
-            <p className="text-xs text-muted-foreground">待收回</p>
+            <div className="text-2xl font-bold text-blue-500">
+              {customers.filter(c => c.level === 'primary').length}
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">本月新增</CardTitle>
-            <Users className="h-4 w-4 text-green-500" />
+            <CardTitle className="text-sm font-medium">普通客户</CardTitle>
+            <Users className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">8</div>
-            <p className="text-xs text-muted-foreground">新客户</p>
+            <div className="text-2xl font-bold text-gray-500">
+              {customers.filter(c => c.level === 'normal').length}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="customers">
-        <TabsList>
-          <TabsTrigger value="customers">客户列表</TabsTrigger>
-          <TabsTrigger value="suppliers">供应商管理</TabsTrigger>
-        </TabsList>
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="搜索客户名称、联系人..."
+                className="pl-10"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Select value={levelFilter} onValueChange={setLevelFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="等级筛选" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部等级</SelectItem>
+                <SelectItem value="vip">VIP客户</SelectItem>
+                <SelectItem value="primary">重点客户</SelectItem>
+                <SelectItem value="normal">普通客户</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="customers" className="space-y-4">
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="搜索客户名称、编码..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+      {/* Table */}
+      <Card>
+        <CardContent className="pt-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : customers.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              暂无数据
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>客户编码</TableHead>
+                    <TableHead>客户名称</TableHead>
+                    <TableHead>等级</TableHead>
+                    <TableHead>联系人</TableHead>
+                    <TableHead>电话</TableHead>
+                    <TableHead>邮箱</TableHead>
+                    <TableHead>操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((customer) => {
+                    const level = levelConfig[customer.level] || levelConfig.normal;
+                    return (
+                      <TableRow key={customer.id}>
+                        <TableCell className="font-medium">{customer.code}</TableCell>
+                        <TableCell>{customer.name}</TableCell>
+                        <TableCell>
+                          <Badge className={`${level.color} text-white`}>
+                            {level.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{customer.contact || '-'}</TableCell>
+                        <TableCell>{customer.phone || '-'}</TableCell>
+                        <TableCell>{customer.email || '-'}</TableCell>
+                        <TableCell>
+                          <Button 
+                            size="icon" 
+                            variant="ghost"
+                            onClick={() => handleOpenDialog(customer)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  共 {total} 条记录
                 </div>
-                <Select defaultValue="all">
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="客户等级" />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">第 {page} / {totalPages} 页</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingCustomer ? '编辑客户' : '新增客户'}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">客户名称 *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="type">客户类型</Label>
+                <Select 
+                  value={formData.type} 
+                  onValueChange={(v) => setFormData({ ...formData, type: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">全部等级</SelectItem>
+                    <SelectItem value="domestic">国内客户</SelectItem>
+                    <SelectItem value="foreign">国外客户</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="level">客户等级</Label>
+                <Select 
+                  value={formData.level} 
+                  onValueChange={(v) => setFormData({ ...formData, level: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="vip">VIP客户</SelectItem>
-                    <SelectItem value="important">重要客户</SelectItem>
+                    <SelectItem value="primary">重点客户</SelectItem>
                     <SelectItem value="normal">普通客户</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Customer Table */}
-          <Card>
-            <CardContent className="pt-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>编码</TableHead>
-                    <TableHead>客户名称</TableHead>
-                    <TableHead>等级</TableHead>
-                    <TableHead>联系人</TableHead>
-                    <TableHead>联系电话</TableHead>
-                    <TableHead>邮箱</TableHead>
-                    <TableHead>欠款余额</TableHead>
-                    <TableHead>订单数</TableHead>
-                    <TableHead>状态</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {customers.map((customer) => (
-                    <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{customer.code}</TableCell>
-                      <TableCell>
-                        <div>
-                          <p>{customer.name}</p>
-                          <p className="text-xs text-muted-foreground">{customer.shortName}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={levelMap[customer.level]?.className}>
-                          {levelMap[customer.level]?.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{customer.contact}</TableCell>
-                      <TableCell>{customer.phone}</TableCell>
-                      <TableCell>{customer.email}</TableCell>
-                      <TableCell className="font-medium">
-                        ¥{customer.balance.toLocaleString()}
-                      </TableCell>
-                      <TableCell>{customer.orderCount}</TableCell>
-                      <TableCell>
-                        <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>
-                          {customer.status === 'active' ? '活跃' : '停用'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
-                              查看详情
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
-                              编辑
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Phone className="mr-2 h-4 w-4" />
-                              联系客户
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Mail className="mr-2 h-4 w-4" />
-                              发送邮件
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="suppliers">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-12 text-muted-foreground">
-                供应商管理功能开发中...
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contact">联系人</Label>
+                <Input
+                  id="contact"
+                  value={formData.contact}
+                  onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              <div className="space-y-2">
+                <Label htmlFor="phone">电话</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">邮箱</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">地址</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>取消</Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
