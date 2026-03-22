@@ -192,6 +192,13 @@ const menuGroups: MenuGroup[] = [
         roles: ['production_manager', 'finishing', 'boss', 'factory_admin'],
         permission: { module: 'finished', action: 'view' },
       },
+      {
+        title: '编菲管理',
+        icon: ClipboardList,
+        href: '/bianfei',
+        roles: ['production_manager', 'cutting_manager', 'boss', 'factory_admin'],
+        permission: { module: 'bianfei', action: 'view' },
+      },
     ],
   },
   // 工序配置

@@ -806,6 +806,46 @@ async function initializeDatabase(client: any, force: boolean) {
     );
   `;
 
+  // 10. 编菲管理表
+  const bianfeiTables = `
+    -- 编菲主表
+    CREATE TABLE IF NOT EXISTS bianfei_records (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      bianfei_no VARCHAR(50) NOT NULL UNIQUE,
+      order_no VARCHAR(50),
+      style_name VARCHAR(200),
+      style_code VARCHAR(100),
+      color VARCHAR(100),
+      sizes JSONB,
+      total_quantity INTEGER DEFAULT 0,
+      quick_mode BOOLEAN DEFAULT FALSE,
+      merge_same BOOLEAN DEFAULT FALSE,
+      auto_increment BOOLEAN DEFAULT FALSE,
+      status VARCHAR(20) DEFAULT 'pending',
+      remark TEXT,
+      created_by VARCHAR(36),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE
+    );
+    
+    CREATE INDEX IF NOT EXISTS bianfei_records_order_idx ON bianfei_records(order_no);
+    CREATE INDEX IF NOT EXISTS bianfei_records_status_idx ON bianfei_records(status);
+    CREATE INDEX IF NOT EXISTS bianfei_records_created_idx ON bianfei_records(created_at);
+    
+    -- 编菲条目表
+    CREATE TABLE IF NOT EXISTS bianfei_items (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      bianfei_id VARCHAR(36) NOT NULL,
+      item_name VARCHAR(200),
+      quantities JSONB,
+      total_quantity INTEGER DEFAULT 0,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS bianfei_items_bianfei_idx ON bianfei_items(bianfei_id);
+  `;
+
   // 执行SQL
   const allTables = [
     { name: 'quality_tables', sql: qualityTables },
@@ -817,7 +857,8 @@ async function initializeDatabase(client: any, force: boolean) {
     { name: 'template_tables', sql: templateTables },
     { name: 'tech_pack_tables', sql: techPackTables },
     { name: 'statement_tables', sql: statementTables },
-    { name: 'customer_portal_tables', sql: customerPortalTables }
+    { name: 'customer_portal_tables', sql: customerPortalTables },
+    { name: 'bianfei_tables', sql: bianfeiTables }
   ];
 
   for (const table of allTables) {
@@ -854,7 +895,8 @@ async function checkDatabaseStatus(client: any) {
     'parent_orders', 'split_orders',
     'templates', 'template_items',
     'statements', 'statement_items', 'statement_payments',
-    'customer_sessions', 'customer_notifications', 'customer_documents'
+    'customer_sessions', 'customer_notifications', 'customer_documents',
+    'bianfei_records', 'bianfei_items'
   ];
 
   const status: { table: string; exists: boolean; count?: number }[] = [];
@@ -908,7 +950,8 @@ async function resetDatabase(client: any) {
     'process_template_items', 'template_usage_logs',
     'statements', 'statement_items', 'statement_payments', 'statement_history', 'statement_reminders',
     'customer_sessions', 'customer_notifications', 'customer_documents',
-    'customer_feedback', 'customer_activity_logs', 'document_downloads', 'customer_settings', 'customer_requests'
+    'customer_feedback', 'customer_activity_logs', 'document_downloads', 'customer_settings', 'customer_requests',
+    'bianfei_records', 'bianfei_items'
   ];
 
   for (const table of tables) {
