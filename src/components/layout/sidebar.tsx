@@ -48,6 +48,8 @@ import {
   Database,
   TrendingUp,
   FileText,
+  Brain,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -441,19 +443,41 @@ const menuGroups: MenuGroup[] = [
       },
     ],
   },
+  // AI智能
+  {
+    title: 'AI智能',
+    icon: Brain,
+    defaultOpen: true,
+    items: [
+      {
+        title: 'AI助手',
+        icon: Sparkles,
+        href: '/ai-assistant',
+        roles: ['all'],
+        permission: { module: 'ai', action: 'view' },
+      },
+      {
+        title: 'AI智能排产',
+        icon: Calendar,
+        href: '/ai-scheduling',
+        roles: ['boss', 'manager', 'production_manager', 'factory_admin'],
+        permission: { module: 'scheduling', action: 'view' },
+      },
+      {
+        title: 'AI智能洞察',
+        icon: Zap,
+        href: '/ai-insights',
+        roles: ['boss', 'manager', 'production_manager', 'qc', 'factory_admin'],
+        permission: { module: 'insights', action: 'view' },
+      },
+    ],
+  },
   // 系统工具
   {
     title: '系统工具',
     icon: Settings,
     defaultOpen: false,
     items: [
-      {
-        title: 'AI 助手',
-        icon: Sparkles,
-        href: '/ai-assistant',
-        roles: ['all'],
-        permission: { module: 'ai', action: 'view' },
-      },
       {
         title: '通知管理',
         icon: Bell,
