@@ -378,6 +378,29 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* 高级功能入口 */}
+      <Card className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950 border-purple-200 dark:border-purple-800">
+        <CardContent className="pt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
+                <Package className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">高级功能中心</h3>
+                <p className="text-sm text-muted-foreground">AI智能核心、设备管理、多工厂协同等9大高级功能已上线</p>
+              </div>
+            </div>
+            <Link href="/advanced-features">
+              <Button>
+                查看全部功能
+                <Package className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 快捷操作 */}
       <Card>
         <CardHeader className="pb-2">

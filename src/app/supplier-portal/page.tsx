@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +63,7 @@ interface OutsourceOrder {
 }
 
 export default function SupplierPortalPage() {
+  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [supplier, setSupplier] = useState<SupplierInfo | null>(null);
   const [orders, setOrders] = useState<OutsourceOrder[]>([]);
@@ -89,8 +91,14 @@ export default function SupplierPortalPage() {
     // 检查本地存储的登录状态
     const savedSupplier = localStorage.getItem('supplier_info');
     if (savedSupplier) {
-      setSupplier(JSON.parse(savedSupplier));
-      setIsLoggedIn(true);
+      try {
+        const parsed = JSON.parse(savedSupplier);
+        setSupplier(parsed);
+        setIsLoggedIn(true);
+      } catch (e) {
+        // 解析失败，清除无效数据
+        localStorage.removeItem('supplier_info');
+      }
     }
   }, []);
 
@@ -129,10 +137,15 @@ export default function SupplierPortalPage() {
   };
 
   const handleLogout = () => {
+    // 清除所有状态
     setIsLoggedIn(false);
     setSupplier(null);
     setOrders([]);
+    setLoginForm({ code: '', phone: '' });
+    // 清除本地存储
     localStorage.removeItem('supplier_info');
+    // 强制刷新页面到登录状态
+    router.refresh();
   };
 
   const fetchOrders = async () => {
