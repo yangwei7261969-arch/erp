@@ -1,25 +1,15 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import React, { useState, useRef, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import {
   Sparkles,
   Send,
-  Printer,
-  FileDown,
-  BarChart3,
-  MessageSquare,
+  ArrowLeft,
   Bot,
   User,
   RefreshCw,
@@ -32,7 +22,14 @@ import {
   TrendingUp,
   Clock,
   CheckCircle,
+  BarChart3,
+  MessageSquare,
+  Zap,
+  Menu,
+  Settings,
+  MoreVertical,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface Message {
   id: string;
@@ -43,10 +40,10 @@ interface Message {
 }
 
 const quickActions = [
-  { icon: BarChart3, label: '生产分析', prompt: '分析当前生产订单的完成情况和效率' },
-  { icon: Package, label: '库存预警', prompt: '检查是否有物料库存不足需要补货' },
-  { icon: DollarSign, label: '财务概览', prompt: '分析本月的财务收支情况' },
-  { icon: AlertTriangle, label: '异常检测', prompt: '检查是否有延迟订单或其他异常情况' },
+  { icon: BarChart3, label: '生产分析', prompt: '分析当前生产订单的完成情况和效率', color: 'bg-primary' },
+  { icon: Package, label: '库存预警', prompt: '检查是否有物料库存不足需要补货', color: 'bg-amber-500' },
+  { icon: DollarSign, label: '财务概览', prompt: '分析本月的财务收支情况', color: 'bg-green-500' },
+  { icon: AlertTriangle, label: '异常检测', prompt: '检查是否有延迟订单或其他异常情况', color: 'bg-red-500' },
 ];
 
 const suggestedQuestions = [
@@ -57,6 +54,7 @@ const suggestedQuestions = [
 ];
 
 export default function AIAssistantPage() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -90,7 +88,6 @@ export default function AIAssistantPage() {
     setInput('');
     setIsLoading(true);
 
-    // 创建AI回复占位
     const aiMessageId = (Date.now() + 1).toString();
     const aiMessage: Message = {
       id: aiMessageId,
@@ -102,13 +99,11 @@ export default function AIAssistantPage() {
     setMessages((prev) => [...prev, aiMessage]);
 
     try {
-      // 准备消息历史
       const chatMessages = messages
-        .filter(m => m.role !== 'assistant' || m.content) // 过滤空消息
+        .filter(m => m.role !== 'assistant' || m.content)
         .map(m => ({ role: m.role, content: m.content }));
       chatMessages.push({ role: 'user', content: input });
 
-      // 创建 AbortController
       abortControllerRef.current = new AbortController();
 
       const response = await fetch('/api/ai-chat', {
@@ -165,7 +160,6 @@ export default function AIAssistantPage() {
         }
       }
 
-      // 完成流式输出
       setMessages((prev) =>
         prev.map((m) =>
           m.id === aiMessageId ? { ...m, isStreaming: false } : m
@@ -173,7 +167,6 @@ export default function AIAssistantPage() {
       );
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        // 用户取消
         setMessages((prev) =>
           prev.map((m) =>
             m.id === aiMessageId ? { ...m, isStreaming: false } : m
@@ -225,229 +218,189 @@ export default function AIAssistantPage() {
   };
 
   return (
-    <div className="p-6 h-[calc(100vh-4rem)] flex flex-col">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Sparkles className="h-8 w-8 text-purple-500" />
-          AI 智能助手
-        </h1>
-        <p className="text-muted-foreground">基于真实业务数据的智能分析助手</p>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-4 flex-1 overflow-hidden">
-        {/* Main Chat Area */}
-        <Card className="lg:col-span-3 flex flex-col">
-          <CardHeader className="border-b">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Avatar>
-                    <AvatarFallback className="bg-purple-500 text-white">
-                      <Bot className="h-5 w-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">智能助手</CardTitle>
-                  <CardDescription>在线 · 随时为您服务</CardDescription>
-                </div>
+    <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
+      {/* 顶部导航栏 - 编菲风格 */}
+      <header className="bg-gradient-to-r from-primary to-orange-600 text-white sticky top-0 z-50">
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => router.push('/')}
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <Sparkles className="h-4 w-4" />
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={handleClearChat}>
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  清空对话
-                </Button>
+              <div>
+                <h1 className="text-base font-semibold">AI 智能助手</h1>
+                <p className="text-xs text-white/80">在线 · 随时为您服务</p>
               </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="flex-1 overflow-hidden p-0">
-            <ScrollArea className="h-full p-4" ref={scrollRef}>
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${
-                      message.role === 'user' ? 'flex-row-reverse' : ''
-                    }`}
-                  >
-                    <Avatar className="flex-shrink-0">
-                      <AvatarFallback
-                        className={
-                          message.role === 'user'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-purple-500 text-white'
-                        }
-                      >
-                        {message.role === 'user' ? (
-                          <User className="h-5 w-5" />
-                        ) : (
-                          <Bot className="h-5 w-5" />
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div
-                      className={`max-w-[80%] rounded-lg p-4 ${
-                        message.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
-                      }`}
-                    >
-                      <div className="whitespace-pre-wrap text-sm">
-                        {message.content}
-                        {message.isStreaming && (
-                          <span className="inline-block w-2 h-4 ml-1 bg-purple-500 animate-pulse" />
-                        )}
-                      </div>
-                      {message.role === 'assistant' && !message.isStreaming && message.content && (
-                        <div className="mt-3 flex items-center gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-7 px-2"
-                            onClick={() => handleCopy(message.content)}
-                          >
-                            <Copy className="h-3 w-3 mr-1" />
-                            复制
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-7 px-2">
-                            <ThumbsUp className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-7 px-2">
-                            <ThumbsDown className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {isLoading && messages[messages.length - 1]?.role === 'user' && (
-                  <div className="flex gap-3">
-                    <Avatar className="flex-shrink-0">
-                      <AvatarFallback className="bg-purple-500 text-white">
-                        <Bot className="h-5 w-5" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="bg-muted rounded-lg p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="h-2 w-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="h-2 w-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </CardContent>
-
-          <div className="border-t p-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="输入您的问题，例如：分析当前生产进度..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                className="flex-1"
-                disabled={isLoading}
-              />
-              {isLoading ? (
-                <Button variant="destructive" onClick={handleStop}>
-                  停止
-                </Button>
-              ) : (
-                <Button onClick={handleSend} disabled={!input.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              )}
             </div>
           </div>
-        </Card>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleClearChat}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <RefreshCw className="h-5 w-5" />
+            </button>
+            <button className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+              <MoreVertical className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </header>
 
-        {/* Sidebar */}
-        <div className="space-y-4">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">快捷分析</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                {quickActions.map((action, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    className="h-auto flex-col gap-1 py-3"
-                    onClick={() => handleQuickAction(action.prompt)}
-                    disabled={isLoading}
+      {/* 主内容区域 */}
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
+        {/* 快捷分析按钮 */}
+        <div className="p-4 border-b bg-white">
+          <div className="grid grid-cols-4 gap-2">
+            {quickActions.map((action, index) => (
+              <button
+                key={index}
+                onClick={() => handleQuickAction(action.prompt)}
+                disabled={isLoading}
+                className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-gray-50 hover:bg-primary/5 transition-colors disabled:opacity-50"
+              >
+                <div className={`w-9 h-9 ${action.color} rounded-xl flex items-center justify-center`}>
+                  <action.icon className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-xs font-medium text-gray-700">{action.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 聊天区域 */}
+        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          <div className="space-y-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex gap-3 ${
+                  message.role === 'user' ? 'flex-row-reverse' : ''
+                }`}
+              >
+                <Avatar className="flex-shrink-0 h-8 w-8">
+                  <AvatarFallback
+                    className={
+                      message.role === 'user'
+                        ? 'bg-primary text-white'
+                        : 'bg-gradient-to-r from-primary to-orange-500 text-white'
+                    }
                   >
-                    <action.icon className="h-4 w-4" />
-                    <span className="text-xs">{action.label}</span>
-                  </Button>
-                ))}
+                    {message.role === 'user' ? (
+                      <User className="h-4 w-4" />
+                    ) : (
+                      <Bot className="h-4 w-4" />
+                    )}
+                  </AvatarFallback>
+                </Avatar>
+                <div
+                  className={`max-w-[85%] rounded-2xl p-3 ${
+                    message.role === 'user'
+                      ? 'bg-primary text-white rounded-tr-md'
+                      : 'bg-white shadow-sm rounded-tl-md'
+                  }`}
+                >
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {message.content}
+                    {message.isStreaming && (
+                      <span className="inline-block w-1.5 h-4 ml-1 bg-primary animate-pulse" />
+                    )}
+                  </div>
+                  {message.role === 'assistant' && !message.isStreaming && message.content && (
+                    <div className="mt-2 pt-2 border-t flex items-center gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 px-2 text-xs"
+                        onClick={() => handleCopy(message.content)}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        复制
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 px-2">
+                        <ThumbsUp className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 px-2">
+                        <ThumbsDown className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            ))}
+            {isLoading && messages[messages.length - 1]?.role === 'user' && (
+              <div className="flex gap-3">
+                <Avatar className="flex-shrink-0 h-8 w-8">
+                  <AvatarFallback className="bg-gradient-to-r from-primary to-orange-500 text-white">
+                    <Bot className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="bg-white shadow-sm rounded-2xl rounded-tl-md p-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
 
-          {/* Suggested Questions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">推荐问题</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {suggestedQuestions.map((question, index) => (
-                  <Button
-                    key={index}
-                    variant="ghost"
-                    className="w-full justify-start text-left h-auto py-2"
-                    onClick={() => handleQuickAction(question)}
-                    disabled={isLoading}
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span className="text-xs line-clamp-2">{question}</span>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {/* 推荐问题 */}
+        {messages.length <= 2 && (
+          <div className="px-4 py-2 border-t bg-white">
+            <p className="text-xs text-muted-foreground mb-2">推荐问题</p>
+            <div className="flex flex-wrap gap-2">
+              {suggestedQuestions.map((question, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleQuickAction(question)}
+                  disabled={isLoading}
+                  className="text-xs px-3 py-1.5 rounded-full bg-gray-100 hover:bg-primary/10 text-gray-700 transition-colors disabled:opacity-50"
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-          {/* AI Capabilities */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">AI 能力</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span>实时业务数据查询</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span>智能生产分析</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span>库存预警检测</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span>财务数据分析</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span>异常订单检测</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span>优化建议生成</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* 输入区域 */}
+        <div className="p-4 border-t bg-white">
+          <div className="flex gap-2">
+            <Input
+              placeholder="输入您的问题..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              className="flex-1 rounded-full border-gray-200 focus:border-primary focus:ring-primary/20"
+              disabled={isLoading}
+            />
+            {isLoading ? (
+              <Button 
+                variant="destructive" 
+                onClick={handleStop}
+                className="rounded-full px-4"
+              >
+                停止
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleSend} 
+                disabled={!input.trim()}
+                className="rounded-full px-4 bg-primary hover:bg-primary/90"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
