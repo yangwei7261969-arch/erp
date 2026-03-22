@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertTriangle,
-  ArrowLeft,
   Sparkles,
   Clock,
   Package,
@@ -17,14 +16,11 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  Zap,
-  RefreshCw,
+  AlertCircle,
   Bell,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 export default function SmartAlertPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
@@ -95,125 +91,148 @@ export default function SmartAlertPage() {
 
   // 模拟预警数据
   const alerts = [
-    { type: 'danger', title: '订单延迟', desc: 'PO-2024001 已延期2天', icon: Clock, color: 'bg-red-500' },
-    { type: 'warning', title: '库存不足', desc: '面料A001 低于安全库存', icon: Package, color: 'bg-amber-500' },
-    { type: 'warning', title: '外发逾期', desc: '外发订单 WO-0028 即将到期', icon: AlertTriangle, color: 'bg-amber-500' },
-    { type: 'info', title: '质量异常', desc: '车间B 返工率偏高', icon: XCircle, color: 'bg-blue-500' },
+    { type: 'danger', title: '订单延迟', desc: 'PO-2024001 已延期2天', icon: Clock, color: 'text-red-500' },
+    { type: 'warning', title: '库存不足', desc: '面料A001 低于安全库存', icon: Package, color: 'text-amber-500' },
+    { type: 'warning', title: '外发逾期', desc: '外发订单 WO-0028 即将到期', icon: AlertCircle, color: 'text-amber-500' },
+    { type: 'info', title: '质量异常', desc: '车间B 返工率偏高', icon: XCircle, color: 'text-blue-500' },
+  ];
+
+  const alertTypes = [
+    { label: '延迟预警', count: 3, color: 'bg-red-500' },
+    { label: '库存预警', count: 5, color: 'bg-amber-500' },
+    { label: '财务预警', count: 1, color: 'bg-blue-500' },
+    { label: '质量预警', count: 2, color: 'bg-violet-500' },
   ];
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
-      {/* 顶部导航栏 */}
-      <header className="bg-gradient-to-r from-red-500 to-rose-500 text-white sticky top-0 z-50">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => router.push('/')}
-              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4" />
-              </div>
-              <div>
-                <h1 className="text-base font-semibold">智能预警</h1>
-                <p className="text-xs text-white/80">实时监控生产异常</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-white/20 text-white border-0">
-              {alerts.length} 项预警
-            </Badge>
-            <button 
-              onClick={handleAnalyze}
-              disabled={loading}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+    <div className="p-6 space-y-6">
+      {/* 标题区域 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-8 w-8 text-red-500" />
+          <div>
+            <h1 className="text-3xl font-bold">智能预警</h1>
+            <p className="text-muted-foreground">实时监控生产异常，AI自动识别风险并提供解决方案</p>
           </div>
         </div>
-      </header>
+        <Badge className="bg-red-100 text-red-700 text-sm">
+          {alerts.length} 项预警
+        </Badge>
+      </div>
 
-      <div className="flex-1 flex flex-col">
-        {/* 预警列表 */}
-        <div className="p-4 bg-white border-b">
-          <div className="space-y-2">
-            {alerts.map((alert, index) => (
-              <div 
-                key={index}
-                className="flex items-center gap-3 p-3 rounded-xl bg-gray-50"
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* 左侧面板 */}
+        <div className="space-y-4">
+          {/* 预警统计 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">预警统计</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {alertTypes.map((type, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 ${type.color} rounded-full`} />
+                      <span className="text-sm">{type.label}</span>
+                    </div>
+                    <Badge variant="secondary">{type.count}</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 预警列表 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">当前预警</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {alerts.map((alert, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
+                    <alert.icon className={`h-5 w-5 ${alert.color}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{alert.title}</div>
+                      <div className="text-xs text-muted-foreground truncate">{alert.desc}</div>
+                    </div>
+                    <Badge 
+                      variant={alert.type === 'danger' ? 'destructive' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {alert.type === 'danger' ? '紧急' : alert.type === 'warning' ? '警告' : '提示'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 操作按钮 */}
+          <Card>
+            <CardContent className="pt-4">
+              <Button 
+                onClick={handleAnalyze} 
+                disabled={loading}
+                className="w-full"
+                size="lg"
+                variant="destructive"
               >
-                <div className={`w-9 h-9 ${alert.color} rounded-xl flex items-center justify-center`}>
-                  <alert.icon className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">{alert.title}</div>
-                  <div className="text-xs text-muted-foreground truncate">{alert.desc}</div>
-                </div>
-                <Badge 
-                  variant={alert.type === 'danger' ? 'destructive' : 'secondary'}
-                  className="text-[10px]"
-                >
-                  {alert.type === 'danger' ? '紧急' : alert.type === 'warning' ? '警告' : '提示'}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    正在分析预警数据...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    AI分析预警根因
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 右侧结果区域 */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-violet-500" />
+                预警分析报告
+              </CardTitle>
+              {streaming && (
+                <Badge variant="secondary" className="animate-pulse">
+                  分析中...
                 </Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 分析按钮 */}
-        <div className="p-4 bg-white border-b">
-          <Button 
-            onClick={handleAnalyze} 
-            disabled={loading}
-            className="w-full bg-red-500 hover:bg-red-600 text-white"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                正在分析预警数据...
-              </>
-            ) : (
-              <>
-                <Zap className="h-4 w-4 mr-2" />
-                AI分析预警根因
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* 结果区域 */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          {result ? (
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="h-4 w-4 text-red-500" />
-                  <span className="font-medium text-sm">预警分析</span>
-                  {streaming && (
-                    <Loader2 className="h-3 w-3 animate-spin text-red-500" />
-                  )}
-                </div>
-                <div className="text-sm whitespace-pre-wrap leading-relaxed">
-                  {result}
-                  {streaming && (
-                    <span className="inline-block w-1.5 h-4 ml-1 bg-red-500 animate-pulse" />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-              <Bell className="h-12 w-12 mb-3 text-gray-300" />
-              <p className="text-sm">点击上方按钮进行AI预警分析</p>
-              <p className="text-xs mt-1">AI将分析预警根因并提供解决方案</p>
+              )}
             </div>
-          )}
-        </ScrollArea>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[500px]">
+              {result ? (
+                <div className="prose prose-sm max-w-none">
+                  <pre className="whitespace-pre-wrap text-sm leading-relaxed bg-muted p-4 rounded-lg">
+                    {result}
+                    {streaming && (
+                      <span className="inline-block w-2 h-4 ml-1 bg-red-500 animate-pulse" />
+                    )}
+                  </pre>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-12">
+                  <Bell className="h-16 w-16 mb-4 text-gray-300" />
+                  <p className="text-lg font-medium mb-2">暂无分析报告</p>
+                  <p className="text-sm max-w-sm">
+                    点击"AI分析预警根因"按钮，AI将分析当前预警的根本原因并提供解决方案
+                  </p>
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

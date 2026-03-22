@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -16,7 +16,6 @@ import {
   ShoppingCart,
   FileCode,
   Layers,
-  ArrowRight,
   Sparkles,
   CheckCircle,
   AlertTriangle,
@@ -24,39 +23,39 @@ import {
   Package,
   TrendingUp,
   Loader2,
-  ArrowLeft,
-  ChevronRight,
-  Zap,
 } from 'lucide-react';
 
 const features = [
   {
     id: 'ai-core',
     title: 'AI智能核心',
-    description: '基于真实业务数据的智能分析，支持自然语言交互',
-    icon: Sparkles,
-    color: 'bg-primary',
+    description: '基于真实业务数据的智能分析，支持自然语言交互，实时查询订单、库存、财务数据',
+    icon: Brain,
+    color: 'text-violet-600',
     status: 'AI已接入',
+    capabilities: ['智能对话分析', '实时数据查询', '异常预警检测', '优化建议生成'],
     link: '/ai-assistant',
     highlight: true,
   },
   {
     id: 'smart-schedule',
     title: '智能排产',
-    description: 'AI驱动排产优化，自动分析订单优先级、产能瓶颈',
+    description: 'AI驱动排产优化，自动分析订单优先级、产能瓶颈、交付风险，生成最优排产方案',
     icon: BarChart3,
-    color: 'bg-blue-500',
+    color: 'text-blue-600',
     status: 'AI已接入',
+    capabilities: ['订单优先级分析', '产能瓶颈识别', '排产方案生成', '风险预警提示'],
     link: '/smart-schedule',
     highlight: true,
   },
   {
     id: 'smart-alert',
     title: '智能预警',
-    description: '实时监控生产异常，AI自动识别延迟订单、库存风险',
+    description: '实时监控生产异常，AI自动识别延迟订单、库存不足、财务风险等问题',
     icon: AlertTriangle,
-    color: 'bg-red-500',
+    color: 'text-red-600',
     status: 'AI已接入',
+    capabilities: ['延迟订单预警', '库存不足预警', '财务风险预警', '根因分析建议'],
     link: '/smart-alert',
     highlight: true,
   },
@@ -65,8 +64,9 @@ const features = [
     title: '设备管理',
     description: 'IoT设备接入、状态监控、预测性维护、OEE分析',
     icon: Cpu,
-    color: 'bg-cyan-500',
+    color: 'text-blue-600',
     status: '已上线',
+    capabilities: ['设备状态实时监控', '预测性维护', 'OEE效率分析', '设备台账管理'],
     link: '/production-dashboard',
   },
   {
@@ -74,8 +74,9 @@ const features = [
     title: '全流程追踪',
     description: 'RFID/条码追踪、生产进度可视化、工序流转记录',
     icon: MapPin,
-    color: 'bg-green-500',
+    color: 'text-green-600',
     status: '已上线',
+    capabilities: ['RFID实时追踪', '工序流转记录', '生产进度可视化', '质量追溯查询'],
     link: '/process-tracking',
   },
   {
@@ -83,8 +84,9 @@ const features = [
     title: '多工厂协同',
     description: '多工厂管理、产能调度、跨厂协同生产',
     icon: Building,
-    color: 'bg-primary',
+    color: 'text-amber-600',
     status: '已上线',
+    capabilities: ['多工厂统一管理', '产能智能调度', '跨厂协同生产', '工厂绩效对比'],
     link: '/production-prep',
   },
   {
@@ -92,8 +94,9 @@ const features = [
     title: '智能分账',
     description: '多角色利润分配、自动结算、账务透明',
     icon: Calculator,
-    color: 'bg-rose-500',
+    color: 'text-rose-600',
     status: '已上线',
+    capabilities: ['多角色利润分配', '自动结算分账', '账务透明可查', '结算报表导出'],
     link: '/supplier-payment',
   },
   {
@@ -101,8 +104,9 @@ const features = [
     title: 'SaaS多租户',
     description: '多企业独立部署、数据隔离、权限分级',
     icon: Users,
-    color: 'bg-violet-500',
+    color: 'text-indigo-600',
     status: '已上线',
+    capabilities: ['多企业独立空间', '数据完全隔离', '权限分级管理', '企业独立域名'],
     link: '/permissions',
   },
   {
@@ -110,8 +114,9 @@ const features = [
     title: '客户自助下单',
     description: '客户在线下单、进度查询、交付确认',
     icon: ShoppingCart,
-    color: 'bg-teal-500',
+    color: 'text-teal-600',
     status: '已上线',
+    capabilities: ['在线自助下单', '实时进度查询', '交付确认签收', '历史订单查看'],
     link: '/customers',
   },
   {
@@ -119,8 +124,9 @@ const features = [
     title: 'CAD对接',
     description: 'CAD文件导入、工艺解析、BOM自动生成',
     icon: FileCode,
-    color: 'bg-sky-500',
+    color: 'text-cyan-600',
     status: '已上线',
+    capabilities: ['CAD文件导入', '工艺自动解析', 'BOM自动生成', '版型智能识别'],
     link: '/style-processes',
   },
   {
@@ -128,8 +134,9 @@ const features = [
     title: '批次管理',
     description: '生产批次追溯、批次属性、批次关联查询',
     icon: Layers,
-    color: 'bg-amber-500',
+    color: 'text-orange-600',
     status: '已上线',
+    capabilities: ['批次全程追溯', '批次属性管理', '批次关联查询', '批次质量分析'],
     link: '/cutting-bundles',
   },
 ];
@@ -175,145 +182,186 @@ function QuickAnalysisCard() {
     }
   };
 
-  const quickActions = [
-    { type: 'production', icon: BarChart3, label: '生产分析' },
-    { type: 'inventory', icon: Package, label: '库存检查' },
-    { type: 'alert', icon: AlertTriangle, label: '异常预警' },
-    { type: 'finance', icon: TrendingUp, label: '财务概览' },
-  ];
-
   return (
-    <Card className="bg-gradient-to-r from-primary to-orange-500 text-white border-0 shadow-lg overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Zap className="h-5 w-5" />
-          <h3 className="font-semibold">AI 快速分析</h3>
+    <Card className="bg-gradient-to-br from-violet-50 to-blue-50 border-violet-200">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-violet-500" />
+          <CardTitle className="text-lg">AI 快速分析</CardTitle>
         </div>
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          {quickActions.map((action) => (
-            <button
-              key={action.type}
-              onClick={() => handleQuickAnalysis(action.type)}
-              disabled={loading !== null}
-              className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50"
-            >
-              {loading === action.type ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <action.icon className="h-5 w-5" />
-              )}
-              <span className="text-xs">{action.label}</span>
-            </button>
-          ))}
+        <CardDescription>一键获取智能分析报告</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <Button 
+            variant="outline" 
+            className="h-auto flex-col gap-1 py-3"
+            onClick={() => handleQuickAnalysis('production')}
+            disabled={loading !== null}
+          >
+            {loading === 'production' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <BarChart3 className="h-4 w-4" />
+            )}
+            <span className="text-xs">生产分析</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto flex-col gap-1 py-3"
+            onClick={() => handleQuickAnalysis('inventory')}
+            disabled={loading !== null}
+          >
+            {loading === 'inventory' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Package className="h-4 w-4" />
+            )}
+            <span className="text-xs">库存检查</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto flex-col gap-1 py-3"
+            onClick={() => handleQuickAnalysis('alert')}
+            disabled={loading !== null}
+          >
+            {loading === 'alert' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <AlertTriangle className="h-4 w-4" />
+            )}
+            <span className="text-xs">异常预警</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto flex-col gap-1 py-3"
+            onClick={() => handleQuickAnalysis('finance')}
+            disabled={loading !== null}
+          >
+            {loading === 'finance' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <TrendingUp className="h-4 w-4" />
+            )}
+            <span className="text-xs">财务概览</span>
+          </Button>
         </div>
         
         {result && (
-          <div className="p-3 bg-white/10 rounded-xl text-sm whitespace-pre-wrap max-h-40 overflow-y-auto mb-3">
+          <div className="mt-4 p-4 bg-background rounded-lg border text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
             {result}
           </div>
         )}
         
-        <Button 
-          className="w-full bg-white text-primary hover:bg-white/90 font-medium"
-          onClick={() => router.push('/ai-assistant')}
-        >
-          <Sparkles className="h-4 w-4 mr-2" />
-          打开完整AI助手
-        </Button>
+        <div className="mt-4 pt-4 border-t">
+          <Button 
+            className="w-full"
+            onClick={() => router.push('/ai-assistant')}
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            打开完整AI助手
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
 }
 
 export default function AdvancedFeaturesPage() {
-  const router = useRouter();
-  const aiFeatures = features.filter(f => f.highlight);
-  const otherFeatures = features.filter(f => !f.highlight);
-
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
-      {/* 顶部导航栏 */}
-      <header className="bg-gradient-to-r from-primary to-orange-600 text-white sticky top-0 z-50">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => router.push('/')}
-              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <div>
-              <h1 className="text-lg font-semibold">高级功能中心</h1>
-              <p className="text-xs text-white/80">AI驱动的智能生产管理</p>
-            </div>
-          </div>
-          <Badge variant="secondary" className="bg-white/20 text-white border-0">
-            {features.length} 项功能
-          </Badge>
+    <div className="p-4 md:p-6 space-y-6">
+      {/* 标题区域 */}
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center gap-2">
+          <Sparkles className="h-8 w-8 text-violet-500" />
+          <h1 className="text-3xl font-bold">高级功能中心</h1>
         </div>
-      </header>
+        <p className="text-muted-foreground max-w-2xl mx-auto">
+          AI驱动的智能生产管理系统，助力企业降本增效、提升竞争力
+        </p>
+      </div>
 
-      <div className="p-4 space-y-4 pb-20">
-        {/* AI 快速分析 */}
-        <QuickAnalysisCard />
+      {/* AI 快速分析 */}
+      <QuickAnalysisCard />
 
-        {/* AI 智能功能 */}
-        <div>
-          <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            AI 智能功能
-          </h2>
-          <div className="grid gap-3">
-            {aiFeatures.map((feature) => (
-              <Link
-                key={feature.id}
-                href={feature.link}
-                className="block bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-11 h-11 ${feature.color} rounded-xl flex items-center justify-center`}>
-                    <feature.icon className="h-5 w-5 text-white" />
+      {/* AI功能区域 */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Brain className="h-5 w-5 text-violet-500" />
+          AI 智能功能
+        </h2>
+        <div className="grid gap-6 md:grid-cols-3">
+          {features.filter(f => f.highlight).map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <Card key={feature.id} className="group hover:shadow-lg transition-all duration-300">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-muted">
+                        <Icon className={`h-6 w-6 ${feature.color}`} />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{feature.title}</CardTitle>
+                        <Badge variant="secondary" className="text-xs mt-1">
+                          {feature.status}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-sm">{feature.title}</h3>
-                      <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary">
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="mb-4">{feature.description}</CardDescription>
+                  <div className="space-y-2 mb-4">
+                    {feature.capabilities.map((cap, i) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span>{cap}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Link href={feature.link}>
+                    <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      立即使用
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 其他功能区域 */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">更多功能</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {features.filter(f => !f.highlight).map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <Card key={feature.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <Icon className={`h-5 w-5 ${feature.color}`} />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">{feature.title}</h3>
+                      <Badge variant="outline" className="text-xs">
                         {feature.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{feature.description}</p>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* 其他功能 */}
-        <div>
-          <h2 className="text-base font-semibold mb-3">更多功能</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {otherFeatures.map((feature) => (
-              <Link
-                key={feature.id}
-                href={feature.link}
-                className="block bg-white rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex flex-col items-center text-center gap-2">
-                  <div className={`w-10 h-10 ${feature.color} rounded-xl flex items-center justify-center`}>
-                    <feature.icon className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-xs">{feature.title}</h3>
-                    <Badge variant="outline" className="text-[10px] mt-1">
-                      {feature.status}
-                    </Badge>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                  <p className="text-sm text-muted-foreground mb-3">{feature.description}</p>
+                  <Link href={feature.link}>
+                    <Button variant="outline" size="sm" className="w-full">
+                      进入功能
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>

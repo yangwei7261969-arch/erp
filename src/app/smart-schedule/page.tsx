@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import {
   BarChart3,
-  ArrowLeft,
   Sparkles,
-  Send,
   Clock,
   Factory,
   Package,
@@ -16,14 +15,9 @@ import {
   TrendingUp,
   CheckCircle,
   Loader2,
-  Calendar,
-  Zap,
-  RefreshCw,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 export default function SmartSchedulePage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
@@ -93,111 +87,141 @@ export default function SmartSchedulePage() {
   };
 
   const scheduleMetrics = [
-    { label: '待排产订单', value: '12', icon: Package, color: 'bg-amber-500' },
-    { label: '产能利用率', value: '85%', icon: Factory, color: 'bg-green-500' },
-    { label: '预计完成率', value: '92%', icon: TrendingUp, color: 'bg-primary' },
-    { label: '风险订单', value: '3', icon: AlertTriangle, color: 'bg-red-500' },
+    { label: '待排产订单', value: '12', icon: Package, color: 'text-amber-600' },
+    { label: '产能利用率', value: '85%', icon: Factory, color: 'text-green-600' },
+    { label: '预计完成率', value: '92%', icon: TrendingUp, color: 'text-blue-600' },
+    { label: '风险订单', value: '3', icon: AlertTriangle, color: 'text-red-600' },
+  ];
+
+  const scheduleRules = [
+    { label: '优先级规则', items: ['交期紧迫度', '客户优先级', '订单金额'] },
+    { label: '资源约束', items: ['设备产能', '人力配置', '物料供应'] },
+    { label: '优化目标', items: ['按时交付率', '产能利用率', '成本最小化'] },
   ];
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
-      {/* 顶部导航栏 */}
-      <header className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white sticky top-0 z-50">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => router.push('/')}
-              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                <BarChart3 className="h-4 w-4" />
+    <div className="p-6 space-y-6">
+      {/* 标题区域 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-8 w-8 text-blue-500" />
+          <div>
+            <h1 className="text-3xl font-bold">智能排产</h1>
+            <p className="text-muted-foreground">AI驱动排产优化，自动分析订单优先级和产能瓶颈</p>
+          </div>
+        </div>
+        <Badge className="bg-violet-100 text-violet-700 text-sm">
+          AI 已接入
+        </Badge>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* 左侧面板 */}
+        <div className="space-y-4">
+          {/* 排产指标 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">当前排产指标</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                {scheduleMetrics.map((metric, index) => (
+                  <div key={index} className="p-3 bg-muted rounded-lg text-center">
+                    <metric.icon className={`h-5 w-5 ${metric.color} mx-auto mb-1`} />
+                    <div className="text-xl font-bold">{metric.value}</div>
+                    <div className="text-xs text-muted-foreground">{metric.label}</div>
+                  </div>
+                ))}
               </div>
-              <div>
-                <h1 className="text-base font-semibold">智能排产</h1>
-                <p className="text-xs text-white/80">AI驱动排产优化</p>
+            </CardContent>
+          </Card>
+
+          {/* 排产规则 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">排产规则</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {scheduleRules.map((rule, index) => (
+                  <div key={index}>
+                    <div className="text-sm font-medium mb-1">{rule.label}</div>
+                    <div className="flex flex-wrap gap-1">
+                      {rule.items.map((item, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {item}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* 操作按钮 */}
+          <Card>
+            <CardContent className="pt-4">
+              <Button 
+                onClick={handleGenerate} 
+                disabled={loading}
+                className="w-full"
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    正在生成排产建议...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    生成智能排产建议
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 右侧结果区域 */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-violet-500" />
+                排产建议
+              </CardTitle>
+              {streaming && (
+                <Badge variant="secondary" className="animate-pulse">
+                  生成中...
+                </Badge>
+              )}
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handleGenerate}
-              disabled={loading}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex-1 flex flex-col">
-        {/* 排产指标 */}
-        <div className="p-4 border-b bg-white">
-          <div className="grid grid-cols-4 gap-2">
-            {scheduleMetrics.map((metric, index) => (
-              <div key={index} className="text-center">
-                <div className={`w-9 h-9 ${metric.color} rounded-xl mx-auto flex items-center justify-center mb-1`}>
-                  <metric.icon className="h-4 w-4 text-white" />
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[500px]">
+              {result ? (
+                <div className="prose prose-sm max-w-none">
+                  <pre className="whitespace-pre-wrap text-sm leading-relaxed bg-muted p-4 rounded-lg">
+                    {result}
+                    {streaming && (
+                      <span className="inline-block w-2 h-4 ml-1 bg-violet-500 animate-pulse" />
+                    )}
+                  </pre>
                 </div>
-                <div className="text-lg font-bold">{metric.value}</div>
-                <div className="text-[10px] text-muted-foreground">{metric.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 生成按钮 */}
-        <div className="p-4 bg-white border-b">
-          <Button 
-            onClick={handleGenerate} 
-            disabled={loading}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                正在生成排产建议...
-              </>
-            ) : (
-              <>
-                <Zap className="h-4 w-4 mr-2" />
-                生成智能排产建议
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* 结果区域 */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          {result ? (
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="h-4 w-4 text-blue-500" />
-                  <span className="font-medium text-sm">排产建议</span>
-                  {streaming && (
-                    <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
-                  )}
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-12">
+                  <BarChart3 className="h-16 w-16 mb-4 text-gray-300" />
+                  <p className="text-lg font-medium mb-2">暂无排产建议</p>
+                  <p className="text-sm max-w-sm">
+                    点击"生成智能排产建议"按钮，AI将基于订单优先级、产能瓶颈等数据生成优化方案
+                  </p>
                 </div>
-                <div className="text-sm whitespace-pre-wrap leading-relaxed">
-                  {result}
-                  {streaming && (
-                    <span className="inline-block w-1.5 h-4 ml-1 bg-blue-500 animate-pulse" />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-              <BarChart3 className="h-12 w-12 mb-3 text-gray-300" />
-              <p className="text-sm">点击上方按钮生成智能排产建议</p>
-              <p className="text-xs mt-1">AI将基于订单优先级、产能瓶颈等数据生成优化方案</p>
-            </div>
-          )}
-        </ScrollArea>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
