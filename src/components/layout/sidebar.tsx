@@ -47,6 +47,7 @@ import {
   BarChart3,
   Database,
   TrendingUp,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -105,6 +106,13 @@ const menuGroups: MenuGroup[] = [
         icon: TrendingUp,
         href: '/kpi-dashboard',
         roles: ['boss', 'manager', 'production_manager', 'hr', 'factory_admin'],
+        permission: { module: 'dashboard', action: 'view' },
+      },
+      {
+        title: '生产仪表盘',
+        icon: BarChart3,
+        href: '/production-dashboard',
+        roles: ['boss', 'manager', 'production_manager', 'factory_admin'],
         permission: { module: 'dashboard', action: 'view' },
       },
       {
@@ -199,6 +207,13 @@ const menuGroups: MenuGroup[] = [
         roles: ['production_manager', 'cutting_manager', 'boss', 'factory_admin'],
         permission: { module: 'bianfei', action: 'view' },
       },
+      {
+        title: '技术包管理',
+        icon: FileText,
+        href: '/tech-pack',
+        roles: ['production_manager', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'techpack', action: 'view' },
+      },
     ],
   },
   // 工序配置
@@ -266,6 +281,13 @@ const menuGroups: MenuGroup[] = [
     icon: Warehouse,
     defaultOpen: true,
     items: [
+      {
+        title: '仓库管理',
+        icon: Warehouse,
+        href: '/warehouse',
+        roles: ['warehouse', 'manager', 'boss', 'factory_admin'],
+        permission: { module: 'warehouse', action: 'view' },
+      },
       {
         title: '物料库存',
         icon: Package,
@@ -360,6 +382,13 @@ const menuGroups: MenuGroup[] = [
     icon: Users,
     defaultOpen: false,
     items: [
+      {
+        title: '人事管理',
+        icon: Users2,
+        href: '/hr',
+        roles: ['hr', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'hr', action: 'view' },
+      },
       {
         title: '员工管理',
         icon: Users,
