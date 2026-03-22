@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,7 @@ import {
   Activity,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardStats {
   orderStats: { total: number; pending: number; in_progress: number; completed: number; cancelled: number };
@@ -46,13 +48,34 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { user, loading: authLoading, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('month');
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
+  // 检查登录状态
   useEffect(() => {
-    fetchStats();
-  }, [period]);
+    if (!authLoading && !isAuthenticated) {
+      // 检查是否是供应商登录
+      const supplierInfo = localStorage.getItem('supplier_info');
+      const userType = localStorage.getItem('user_type');
+      
+      if (supplierInfo && userType === 'supplier') {
+        // 供应商已登录，跳转到供应商工作台
+        router.push('/supplier-workbench');
+      } else {
+        // 未登录，跳转到登录页
+        router.push('/login');
+      }
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchStats();
+    }
+  }, [period, isAuthenticated]);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -115,7 +138,7 @@ export default function DashboardPage() {
     return Math.max(...stats.monthlyTrend.map(m => Math.max(m.income, m.expense)), 1);
   };
 
-  if (loading || !stats) {
+  if (authLoading || loading || !stats) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
