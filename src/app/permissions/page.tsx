@@ -151,7 +151,7 @@ export default function PermissionManagementPage() {
 
   const checkFactoryAdmin = async () => {
     try {
-      const res = await fetch('/api/init-factory-admin');
+      const res = await fetch('/api/init-database?action=check-factory-admin');
       const data = await res.json();
       setFactoryAdminExists(data.exists);
     } catch (error) {
@@ -353,10 +353,13 @@ export default function PermissionManagementPage() {
     }
     
     try {
-      const res = await fetch('/api/init-factory-admin', {
+      const res = await fetch('/api/init-database', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(factoryAdminForm),
+        body: JSON.stringify({ 
+          action: 'factory-admin',
+          ...factoryAdminForm 
+        }),
       });
       const data = await res.json();
       if (data.success) {

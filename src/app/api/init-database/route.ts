@@ -2,15 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 /**
- * 数据库完整初始化API
+ * 数据库完整初始化API（统一入口）
  * 
- * 创建所有业务需要的表结构
+ * 支持的操作：
+ * - action=init: 初始化所有表结构
+ * - action=check: 检查数据库状态
+ * - action=seed: 填充演示数据
+ * - action=demo: 初始化完整演示环境（生产订单、物料、供应商等）
+ * - action=factory-admin: 初始化分厂主账户
+ * - action=reset: 重置数据库
  */
 export async function GET(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const { searchParams } = new URL(request.url);
-    const action = searchParams.get('action') || 'init';
+    const action = searchParams.get('action') || 'check';
     const force = searchParams.get('force') === 'true';
 
     switch (action) {
@@ -18,12 +24,45 @@ export async function GET(request: NextRequest) {
         return await initializeDatabase(client, force);
       case 'check':
         return await checkDatabaseStatus(client);
+      case 'check-factory-admin':
+        return await checkFactoryAdminExists(client);
       case 'seed':
         return await seedDemoData(client);
+      case 'demo':
+        return await initFullDemoData(client);
       case 'reset':
         return await resetDatabase(client);
       default:
         return await checkDatabaseStatus(client);
+    }
+  } catch (error) {
+    console.error('Database init error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: '数据库初始化失败',
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
+}
+
+/**
+ * POST方法支持复杂操作
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const client = getSupabaseClient();
+    const body = await request.json().catch(() => ({}));
+    const action = body.action || 'init';
+
+    switch (action) {
+      case 'factory-admin':
+        return await initFactoryAdmin(client, body);
+      case 'demo':
+        return await initFullDemoData(client);
+      case 'seed':
+        return await seedDemoData(client);
+      default:
+        return await initializeDatabase(client, body.force === true);
     }
   } catch (error) {
     console.error('Database init error:', error);
@@ -1029,4 +1068,306 @@ async function seedDemoData(client: any) {
     message: '演示数据填充完成',
     results
   });
+}
+
+/**
+ * 初始化完整演示环境（合并自 init-demo）
+ */
+async function initFullDemoData(client: any) {
+  const results: string[] = [];
+  const counts: Record<string, number> = {};
+
+  // 1. 创建演示生产订单
+  const demoOrders = [
+    {
+      order_no: 'PO20250101',
+      style_no: 'A001',
+      style_name: '经典款T恤',
+      style_image: 'https://picsum.photos/seed/style1/200',
+      color: '白色',
+      total_quantity: 1000,
+      completed_quantity: 650,
+      status: 'in_progress',
+      plan_start_date: '2025-01-01',
+      plan_end_date: '2025-01-15',
+      cutting_days: 3,
+      sewing_days: 7,
+      finishing_days: 3,
+    },
+    {
+      order_no: 'PO20250102',
+      style_no: 'A002',
+      style_name: '时尚连衣裙',
+      style_image: 'https://picsum.photos/seed/style2/200',
+      color: '黑色',
+      total_quantity: 500,
+      completed_quantity: 500,
+      status: 'completed',
+      plan_start_date: '2024-12-15',
+      plan_end_date: '2025-01-05',
+      cutting_days: 2,
+      sewing_days: 5,
+      finishing_days: 2,
+    },
+    {
+      order_no: 'PO20250103',
+      style_no: 'B001',
+      style_name: '休闲裤',
+      style_image: 'https://picsum.photos/seed/style3/200',
+      color: '深蓝',
+      total_quantity: 800,
+      completed_quantity: 0,
+      status: 'pending',
+      plan_start_date: '2025-01-10',
+      plan_end_date: '2025-01-25',
+      cutting_days: 3,
+      sewing_days: 6,
+      finishing_days: 3,
+    },
+  ];
+
+  try {
+    for (const order of demoOrders) {
+      await client.from('production_orders').upsert(order, { onConflict: 'order_no' });
+    }
+    results.push('创建生产订单成功');
+    counts.orders = demoOrders.length;
+  } catch (e) {
+    results.push('生产订单已存在或创建失败');
+  }
+
+  // 2. 创建演示物料
+  const demoMaterials = [
+    { code: 'M001', name: '纯棉面料', spec: '40S/1', color: '白色', quantity: 5000, unit: '码', safety_stock: 1000, unit_price: 25, location: 'A-01' },
+    { code: 'M002', name: '涤纶面料', spec: '75D', color: '黑色', quantity: 3000, unit: '码', safety_stock: 800, unit_price: 18, location: 'A-02' },
+    { code: 'M003', name: '拉链', spec: '3#', color: '银色', quantity: 50, unit: '条', safety_stock: 200, unit_price: 1.5, location: 'B-01' },
+    { code: 'M004', name: '纽扣', spec: '18mm', color: '黑色', quantity: 200, unit: '颗', safety_stock: 500, unit_price: 0.3, location: 'B-02' },
+    { code: 'M005', name: '缝纫线', spec: '40S/2', color: '白色', quantity: 100, unit: '个', safety_stock: 50, unit_price: 8, location: 'B-03' },
+  ];
+
+  try {
+    for (const material of demoMaterials) {
+      await client.from('materials').upsert(material, { onConflict: 'code' });
+    }
+    results.push('创建物料成功');
+    counts.materials = demoMaterials.length;
+  } catch (e) {
+    results.push('物料已存在或创建失败');
+  }
+
+  // 3. 创建演示供应商
+  const demoSuppliers = [
+    { code: 'S001', name: '优质纺织厂', short_name: '优质纺织', type: 'factory', category: '面料', level: 1, contact: '张经理', phone: '13800138001', email: 'youzhi@example.com', status: 'approved', rating: 5 },
+    { code: 'S002', name: '快捷辅料店', short_name: '快捷辅料', type: 'supplier', category: '辅料', level: 2, contact: '李总', phone: '13800138002', email: 'kuaijie@example.com', status: 'approved', rating: 4 },
+    { code: 'S003', name: '精美刺绣厂', short_name: '精美刺绣', type: 'factory', category: '刺绣', level: 1, contact: '王厂长', phone: '13800138003', email: 'jingmei@example.com', status: 'approved', rating: 5 },
+  ];
+
+  try {
+    for (const supplier of demoSuppliers) {
+      await client.from('suppliers').upsert(supplier, { onConflict: 'code' });
+    }
+    results.push('创建供应商成功');
+    counts.suppliers = demoSuppliers.length;
+  } catch (e) {
+    results.push('供应商已存在或创建失败');
+  }
+
+  // 4. 创建演示财务账单
+  const demoBills = [
+    { bill_no: 'FI202501001', type: 'income', amount: 150000, payer: '客户A', payee: '公司', bill_date: '2025-01-05', status: 'paid', remark: '订单PO20250101预付款' },
+    { bill_no: 'FI202501002', type: 'expense', amount: 50000, payer: '公司', payee: '优质纺织厂', bill_date: '2025-01-06', status: 'paid', remark: '面料采购款' },
+    { bill_no: 'FI202501003', type: 'income', amount: 80000, payer: '客户B', payee: '公司', bill_date: '2025-01-08', status: 'paid', remark: '订单PO20250102尾款' },
+    { bill_no: 'FI202501004', type: 'expense', amount: 12000, payer: '公司', payee: '精美刺绣厂', bill_date: '2025-01-10', status: 'pending', remark: '外发刺绣费用' },
+  ];
+
+  try {
+    for (const bill of demoBills) {
+      await client.from('bills').upsert(bill, { onConflict: 'bill_no' });
+    }
+    results.push('创建账单成功');
+    counts.bills = demoBills.length;
+  } catch (e) {
+    results.push('账单已存在或创建失败');
+  }
+
+  // 5. 创建演示员工
+  const demoEmployees = [
+    { employee_no: 'E001', name: '张三', department: '裁床部', position: '裁床主管', status: 'active', hire_date: '2020-03-01' },
+    { employee_no: 'E002', name: '李四', department: '缝制部', position: '缝制工', status: 'active', hire_date: '2021-06-15' },
+    { employee_no: 'E003', name: '王五', department: '尾部', position: '尾部主管', status: 'active', hire_date: '2019-08-01' },
+    { employee_no: 'E004', name: '赵六', department: '仓库', position: '仓管员', status: 'active', hire_date: '2022-01-10' },
+  ];
+
+  try {
+    for (const employee of demoEmployees) {
+      await client.from('employees').upsert(employee, { onConflict: 'employee_no' });
+    }
+    results.push('创建员工成功');
+    counts.employees = demoEmployees.length;
+  } catch (e) {
+    results.push('员工已存在或创建失败');
+  }
+
+  // 6. 创建演示出货任务
+  const demoShipments = [
+    { shipment_no: 'SH20250101', order_id: 'PO20250102', customer: '客户B', quantity: 500, shipment_date: '2025-01-12', status: 'shipped', address: '深圳市南山区' },
+    { shipment_no: 'SH20250102', order_id: 'PO20250101', customer: '客户A', quantity: 300, shipment_date: '2025-01-18', status: 'pending', address: '广州市天河区' },
+  ];
+
+  try {
+    for (const shipment of demoShipments) {
+      await client.from('shipments').upsert(shipment, { onConflict: 'shipment_no' });
+    }
+    results.push('创建出货任务成功');
+    counts.shipments = demoShipments.length;
+  } catch (e) {
+    results.push('出货任务已存在或创建失败');
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: '完整演示环境初始化成功',
+    results,
+    counts
+  });
+}
+
+/**
+ * 初始化分厂主账户（合并自 init-factory-admin）
+ */
+async function initFactoryAdmin(client: any, body: any) {
+  const { name, email, phone, password, factory_name } = body;
+
+  if (!name || !email || !password) {
+    return NextResponse.json({ 
+      success: false, 
+      error: '缺少必填字段（name, email, password）' 
+    }, { status: 400 });
+  }
+
+  // 检查邮箱是否已存在
+  const { data: existingUser } = await client
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .single();
+
+  if (existingUser) {
+    return NextResponse.json({ 
+      success: false, 
+      error: '邮箱已被使用' 
+    }, { status: 400 });
+  }
+
+  // 检查是否已有分厂主账户
+  const { data: existingFactoryAdmin } = await client
+    .from('user_roles')
+    .select('id')
+    .eq('role_id', 'role_factory_admin')
+    .limit(1);
+
+  if (existingFactoryAdmin && existingFactoryAdmin.length > 0) {
+    return NextResponse.json({ 
+      success: false, 
+      error: '分厂主账户已存在，无法重复创建' 
+    }, { status: 400 });
+  }
+
+  try {
+    // 创建用户
+    const { data: user, error: userError } = await client
+      .from('users')
+      .insert({
+        name,
+        email,
+        phone,
+        password, // 实际应该加密存储
+        department: factory_name || '分厂',
+        position: '分厂主账户',
+        status: 'active',
+      })
+      .select()
+      .single();
+
+    if (userError) throw userError;
+
+    // 分配分厂主账户角色
+    const { error: roleError } = await client
+      .from('user_roles')
+      .insert({
+        user_id: user.id,
+        role_id: 'role_factory_admin',
+      });
+
+    if (roleError) throw roleError;
+
+    // 创建默认权限
+    const defaultPermissions = [
+      'production', 'inventory', 'warehouse', 'finance', 'hr', 'quality'
+    ];
+    
+    const permissionRecords = defaultPermissions.map(module => ({
+      user_id: user.id,
+      module,
+      can_view: true,
+      can_edit: true,
+      can_delete: true,
+    }));
+
+    const { error: permError } = await client
+      .from('user_permissions')
+      .insert(permissionRecords);
+
+    if (permError) {
+      console.warn('创建权限记录失败:', permError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: '分厂主账户创建成功',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      }
+    });
+  } catch (error: any) {
+    console.error('创建分厂主账户失败:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || '创建分厂主账户失败' 
+    }, { status: 500 });
+  }
+}
+
+/**
+ * 检查分厂主账户是否存在
+ */
+async function checkFactoryAdminExists(client: any) {
+  try {
+    const { data, error } = await client
+      .from('user_roles')
+      .select('id, users(id, name, email)')
+      .eq('role_id', 'role_factory_admin')
+      .limit(1);
+
+    if (error) {
+      // 表不存在时返回 false
+      return NextResponse.json({ 
+        success: true, 
+        exists: false 
+      });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      exists: data && data.length > 0,
+      admin: data && data[0]?.users || null
+    });
+  } catch (error: any) {
+    return NextResponse.json({ 
+      success: true, 
+      exists: false 
+    });
+  }
 }

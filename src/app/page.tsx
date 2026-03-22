@@ -84,7 +84,7 @@ export default function DashboardPage() {
 
   const initDemoData = async () => {
     try {
-      const response = await fetch('/api/init-demo', { method: 'POST' });
+      const response = await fetch('/api/init-database?action=demo', { method: 'POST' });
       const result = await response.json();
       if (result.success) {
         alert('演示数据初始化成功！');
