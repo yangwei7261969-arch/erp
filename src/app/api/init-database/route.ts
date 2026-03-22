@@ -885,8 +885,534 @@ async function initializeDatabase(client: any, force: boolean) {
     CREATE INDEX IF NOT EXISTS bianfei_items_bianfei_idx ON bianfei_items(bianfei_id);
   `;
 
+  // 11. 核心业务表（补充缺失的表）
+  const coreTables = `
+    -- 用户表
+    CREATE TABLE IF NOT EXISTS users (
+      id VARCHAR(50) PRIMARY KEY,
+      username VARCHAR(50) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      email VARCHAR(100),
+      phone VARCHAR(20),
+      avatar VARCHAR(255),
+      department VARCHAR(100),
+      role_id VARCHAR(50),
+      status VARCHAR(20) DEFAULT 'active',
+      last_login TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 角色表
+    CREATE TABLE IF NOT EXISTS roles (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 客户表
+    CREATE TABLE IF NOT EXISTS customers (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      code VARCHAR(50) UNIQUE NOT NULL,
+      contact_person VARCHAR(100),
+      phone VARCHAR(20),
+      email VARCHAR(100),
+      address TEXT,
+      city VARCHAR(100),
+      country VARCHAR(100) DEFAULT '中国',
+      credit_level VARCHAR(20) DEFAULT 'normal',
+      payment_terms VARCHAR(100),
+      notes TEXT,
+      status VARCHAR(20) DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 供应商表
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      code VARCHAR(50) UNIQUE NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      contact_person VARCHAR(100),
+      phone VARCHAR(20),
+      email VARCHAR(100),
+      address TEXT,
+      city VARCHAR(100),
+      country VARCHAR(100) DEFAULT '中国',
+      credit_level VARCHAR(20) DEFAULT 'normal',
+      lead_time_days INTEGER DEFAULT 7,
+      rating DECIMAL(3,2) DEFAULT 0,
+      status VARCHAR(20) DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 物料分类表
+    CREATE TABLE IF NOT EXISTS material_categories (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      code VARCHAR(50) UNIQUE NOT NULL,
+      parent_id VARCHAR(50),
+      description TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 物料表
+    CREATE TABLE IF NOT EXISTS materials (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      code VARCHAR(50) UNIQUE NOT NULL,
+      category_id VARCHAR(50),
+      type VARCHAR(50) NOT NULL,
+      unit VARCHAR(20) NOT NULL,
+      color VARCHAR(50),
+      specification VARCHAR(200),
+      width DECIMAL(10,2),
+      weight DECIMAL(10,2),
+      composition VARCHAR(200),
+      supplier_id VARCHAR(50),
+      unit_price DECIMAL(10,2) DEFAULT 0,
+      safety_stock INTEGER DEFAULT 0,
+      current_stock INTEGER DEFAULT 0,
+      location VARCHAR(100),
+      image VARCHAR(255),
+      status VARCHAR(20) DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 款式表
+    CREATE TABLE IF NOT EXISTS styles (
+      id VARCHAR(50) PRIMARY KEY,
+      style_no VARCHAR(50) UNIQUE NOT NULL,
+      name VARCHAR(200) NOT NULL,
+      category VARCHAR(50),
+      season VARCHAR(20),
+      year INTEGER,
+      color VARCHAR(200),
+      size_range VARCHAR(100),
+      base_price DECIMAL(10,2),
+      cost_price DECIMAL(10,2),
+      description TEXT,
+      image VARCHAR(255),
+      status VARCHAR(20) DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 生产线表
+    CREATE TABLE IF NOT EXISTS production_lines (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      code VARCHAR(20) UNIQUE NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      capacity_per_day INTEGER DEFAULT 0,
+      efficiency DECIMAL(5,2) DEFAULT 0,
+      manager VARCHAR(100),
+      status VARCHAR(20) DEFAULT 'active',
+      location VARCHAR(100),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 工序表
+    CREATE TABLE IF NOT EXISTS processes (
+      id VARCHAR(50) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      code VARCHAR(20) UNIQUE NOT NULL,
+      category VARCHAR(50) NOT NULL,
+      sequence INTEGER DEFAULT 0,
+      standard_time DECIMAL(5,2),
+      standard_rate DECIMAL(10,4),
+      description TEXT,
+      is_quality_point BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 员工表
+    CREATE TABLE IF NOT EXISTS employees (
+      id VARCHAR(50) PRIMARY KEY,
+      employee_no VARCHAR(50) UNIQUE NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      gender VARCHAR(10),
+      phone VARCHAR(20),
+      email VARCHAR(100),
+      id_card VARCHAR(20),
+      department VARCHAR(100),
+      position VARCHAR(100),
+      skill_level VARCHAR(20),
+      skill_types JSONB,
+      production_line_id VARCHAR(50),
+      hire_date DATE,
+      status VARCHAR(20) DEFAULT 'active',
+      base_salary DECIMAL(10,2) DEFAULT 0,
+      piece_rate DECIMAL(5,2) DEFAULT 1,
+      bank_account VARCHAR(50),
+      bank_name VARCHAR(100),
+      emergency_contact VARCHAR(100),
+      emergency_phone VARCHAR(20),
+      avatar VARCHAR(255),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 生产订单表
+    CREATE TABLE IF NOT EXISTS production_orders (
+      id VARCHAR(50) PRIMARY KEY,
+      order_no VARCHAR(50) UNIQUE NOT NULL,
+      customer_id VARCHAR(50),
+      style_id VARCHAR(50),
+      style_no VARCHAR(50),
+      style_name VARCHAR(200),
+      color VARCHAR(50),
+      total_quantity INTEGER NOT NULL,
+      size_breakdown JSONB,
+      unit_price DECIMAL(10,2),
+      total_amount DECIMAL(12,2),
+      order_date DATE,
+      delivery_date DATE,
+      status VARCHAR(20) DEFAULT 'pending',
+      progress INTEGER DEFAULT 0,
+      priority VARCHAR(20) DEFAULT 'normal',
+      production_line_id VARCHAR(50),
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 裁床记录表
+    CREATE TABLE IF NOT EXISTS cutting_records (
+      id VARCHAR(50) PRIMARY KEY,
+      cutting_no VARCHAR(50) UNIQUE NOT NULL,
+      order_id VARCHAR(50),
+      order_no VARCHAR(50),
+      style_id VARCHAR(50),
+      style_no VARCHAR(50),
+      color VARCHAR(50),
+      material_id VARCHAR(50),
+      material_name VARCHAR(200),
+      material_usage DECIMAL(10,2),
+      layer_count INTEGER,
+      marker_length DECIMAL(10,2),
+      marker_efficiency DECIMAL(5,2),
+      total_pieces INTEGER,
+      cutting_date DATE,
+      cutter VARCHAR(100),
+      cutting_table VARCHAR(50),
+      status VARCHAR(20) DEFAULT 'pending',
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 裁床分扎表
+    CREATE TABLE IF NOT EXISTS cutting_bundles (
+      id VARCHAR(50) PRIMARY KEY,
+      bundle_no VARCHAR(50) UNIQUE NOT NULL,
+      cutting_id VARCHAR(50) NOT NULL,
+      cutting_no VARCHAR(50),
+      order_id VARCHAR(50),
+      order_no VARCHAR(50),
+      size VARCHAR(20) NOT NULL,
+      color VARCHAR(50),
+      quantity INTEGER NOT NULL,
+      layer_from INTEGER,
+      layer_to INTEGER,
+      status VARCHAR(20) DEFAULT 'pending',
+      current_process VARCHAR(100),
+      barcode VARCHAR(100),
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 工票表
+    CREATE TABLE IF NOT EXISTS work_tickets (
+      id VARCHAR(50) PRIMARY KEY,
+      ticket_no VARCHAR(50) UNIQUE NOT NULL,
+      bundle_id VARCHAR(50),
+      bundle_no VARCHAR(50),
+      order_id VARCHAR(50),
+      order_no VARCHAR(50),
+      process_id VARCHAR(50),
+      process_name VARCHAR(100),
+      employee_id VARCHAR(50),
+      employee_name VARCHAR(100),
+      quantity INTEGER NOT NULL,
+      completed_quantity INTEGER DEFAULT 0,
+      defect_quantity INTEGER DEFAULT 0,
+      unit_price DECIMAL(10,4),
+      total_amount DECIMAL(10,2),
+      status VARCHAR(20) DEFAULT 'pending',
+      scan_time TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 质检记录表
+    CREATE TABLE IF NOT EXISTS quality_inspections (
+      id VARCHAR(50) PRIMARY KEY,
+      inspection_no VARCHAR(50) UNIQUE NOT NULL,
+      order_id VARCHAR(50),
+      order_no VARCHAR(50),
+      bundle_id VARCHAR(50),
+      bundle_no VARCHAR(50),
+      process_id VARCHAR(50),
+      process_name VARCHAR(100),
+      inspection_type VARCHAR(50) NOT NULL,
+      inspector VARCHAR(100),
+      inspection_date DATE,
+      sample_quantity INTEGER,
+      pass_quantity INTEGER,
+      defect_quantity INTEGER,
+      defect_rate DECIMAL(5,2),
+      result VARCHAR(20),
+      defect_details JSONB,
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 出货表
+    CREATE TABLE IF NOT EXISTS shipments (
+      id VARCHAR(50) PRIMARY KEY,
+      shipment_no VARCHAR(50) UNIQUE NOT NULL,
+      order_id VARCHAR(50),
+      order_no VARCHAR(50),
+      customer_id VARCHAR(50),
+      customer_name VARCHAR(200),
+      total_quantity INTEGER NOT NULL,
+      total_boxes INTEGER,
+      total_weight DECIMAL(10,2),
+      shipping_method VARCHAR(50),
+      carrier VARCHAR(100),
+      tracking_no VARCHAR(100),
+      shipping_address TEXT,
+      contact_person VARCHAR(100),
+      contact_phone VARCHAR(20),
+      planned_date DATE,
+      actual_date DATE,
+      status VARCHAR(20) DEFAULT 'pending',
+      shipper VARCHAR(100),
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 外发订单表
+    CREATE TABLE IF NOT EXISTS outsource_orders (
+      id VARCHAR(50) PRIMARY KEY,
+      outsource_no VARCHAR(50) UNIQUE NOT NULL,
+      bundle_id VARCHAR(50),
+      bundle_no VARCHAR(50),
+      order_id VARCHAR(50),
+      order_no VARCHAR(50),
+      supplier_id VARCHAR(50) NOT NULL,
+      supplier_name VARCHAR(200),
+      process_id VARCHAR(50),
+      process_name VARCHAR(100),
+      send_quantity INTEGER NOT NULL,
+      return_quantity INTEGER DEFAULT 0,
+      defect_quantity INTEGER DEFAULT 0,
+      unit_price DECIMAL(10,2),
+      total_amount DECIMAL(12,2),
+      send_date DATE,
+      expected_return_date DATE,
+      actual_return_date DATE,
+      status VARCHAR(20) DEFAULT 'pending',
+      sender VARCHAR(100),
+      receiver VARCHAR(100),
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 库存事务表
+    CREATE TABLE IF NOT EXISTS inventory_transactions (
+      id VARCHAR(50) PRIMARY KEY,
+      transaction_no VARCHAR(50) UNIQUE NOT NULL,
+      material_id VARCHAR(50) NOT NULL,
+      type VARCHAR(20) NOT NULL,
+      quantity INTEGER NOT NULL,
+      before_quantity INTEGER,
+      after_quantity INTEGER,
+      unit VARCHAR(20),
+      unit_price DECIMAL(10,2),
+      total_amount DECIMAL(12,2),
+      warehouse VARCHAR(100),
+      location VARCHAR(100),
+      related_order VARCHAR(50),
+      related_type VARCHAR(20),
+      operator VARCHAR(100),
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 考勤表
+    CREATE TABLE IF NOT EXISTS attendance (
+      id VARCHAR(50) PRIMARY KEY,
+      employee_id VARCHAR(50) NOT NULL,
+      employee_no VARCHAR(50),
+      employee_name VARCHAR(100),
+      attendance_date DATE NOT NULL,
+      check_in_time VARCHAR(10),
+      check_out_time VARCHAR(10),
+      work_hours DECIMAL(5,2) DEFAULT 0,
+      overtime_hours DECIMAL(5,2) DEFAULT 0,
+      status VARCHAR(20) DEFAULT 'normal',
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(employee_id, attendance_date)
+    );
+    
+    -- 工资记录表
+    CREATE TABLE IF NOT EXISTS salary_records (
+      id VARCHAR(50) PRIMARY KEY,
+      employee_id VARCHAR(50) NOT NULL,
+      employee_no VARCHAR(50),
+      employee_name VARCHAR(100),
+      year INTEGER NOT NULL,
+      month INTEGER NOT NULL,
+      base_salary DECIMAL(10,2) DEFAULT 0,
+      piece_salary DECIMAL(10,2) DEFAULT 0,
+      overtime_salary DECIMAL(10,2) DEFAULT 0,
+      bonus DECIMAL(10,2) DEFAULT 0,
+      deduction DECIMAL(10,2) DEFAULT 0,
+      total_salary DECIMAL(10,2) DEFAULT 0,
+      work_days INTEGER DEFAULT 22,
+      overtime_hours DECIMAL(5,2) DEFAULT 0,
+      piece_count INTEGER DEFAULT 0,
+      status VARCHAR(20) DEFAULT 'pending',
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(employee_id, year, month)
+    );
+    
+    -- 通知表
+    CREATE TABLE IF NOT EXISTS notifications (
+      id VARCHAR(50) PRIMARY KEY,
+      type VARCHAR(20) NOT NULL,
+      level VARCHAR(20) DEFAULT 'info',
+      title VARCHAR(200) NOT NULL,
+      content TEXT,
+      related_order VARCHAR(50),
+      related_type VARCHAR(50),
+      recipient VARCHAR(50),
+      status VARCHAR(20) DEFAULT 'unread',
+      read_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 预警记录
+    CREATE TABLE IF NOT EXISTS alerts (
+      id VARCHAR(50) PRIMARY KEY,
+      alert_rule_id VARCHAR(50),
+      alert_type VARCHAR(20) NOT NULL,
+      alert_level VARCHAR(20) DEFAULT 'warning',
+      title VARCHAR(200) NOT NULL,
+      content TEXT,
+      related_id VARCHAR(50),
+      status VARCHAR(20) DEFAULT 'active',
+      handled_by VARCHAR(100),
+      handled_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 账单表
+    CREATE TABLE IF NOT EXISTS bills (
+      id VARCHAR(50) PRIMARY KEY,
+      bill_no VARCHAR(50) UNIQUE NOT NULL,
+      bill_type VARCHAR(20) NOT NULL,
+      category VARCHAR(50),
+      related_id VARCHAR(50),
+      related_no VARCHAR(50),
+      customer_id VARCHAR(50),
+      supplier_id VARCHAR(50),
+      amount DECIMAL(12,2) NOT NULL,
+      paid_amount DECIMAL(12,2) DEFAULT 0,
+      due_date DATE,
+      payment_date DATE,
+      status VARCHAR(20) DEFAULT 'pending',
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 公告表
+    CREATE TABLE IF NOT EXISTS announcements (
+      id VARCHAR(50) PRIMARY KEY,
+      title VARCHAR(200) NOT NULL,
+      content TEXT NOT NULL,
+      type VARCHAR(20) DEFAULT 'general',
+      priority VARCHAR(20) DEFAULT 'normal',
+      status VARCHAR(20) DEFAULT 'draft',
+      publish_date DATE,
+      expire_date DATE,
+      author VARCHAR(100),
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 采购订单表
+    CREATE TABLE IF NOT EXISTS purchase_orders (
+      id VARCHAR(50) PRIMARY KEY,
+      po_no VARCHAR(50) UNIQUE NOT NULL,
+      supplier_id VARCHAR(50) NOT NULL,
+      supplier_name VARCHAR(200),
+      order_date DATE,
+      expected_date DATE,
+      total_amount DECIMAL(12,2) DEFAULT 0,
+      status VARCHAR(20) DEFAULT 'pending',
+      approved_by VARCHAR(100),
+      remark TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 设备表
+    CREATE TABLE IF NOT EXISTS equipment (
+      id VARCHAR(50) PRIMARY KEY,
+      equipment_no VARCHAR(50) UNIQUE NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      brand VARCHAR(100),
+      model VARCHAR(100),
+      production_line_id VARCHAR(50),
+      purchase_date DATE,
+      purchase_price DECIMAL(12,2),
+      warranty_months INTEGER,
+      status VARCHAR(20) DEFAULT 'normal',
+      daily_capacity INTEGER DEFAULT 0,
+      efficiency DECIMAL(5,2) DEFAULT 0,
+      operator VARCHAR(100),
+      last_maintenance_date DATE,
+      next_maintenance_date DATE,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    
+    -- 扫描日志
+    CREATE TABLE IF NOT EXISTS scan_logs (
+      id VARCHAR(50) PRIMARY KEY,
+      scan_type VARCHAR(20) NOT NULL,
+      barcode VARCHAR(100) NOT NULL,
+      employee_id VARCHAR(50),
+      employee_name VARCHAR(100),
+      location VARCHAR(100),
+      quantity INTEGER,
+      scan_time TIMESTAMP DEFAULT NOW(),
+      remark TEXT
+    );
+    
+    -- 创建索引
+    CREATE INDEX IF NOT EXISTS users_username_idx ON users(username);
+    CREATE INDEX IF NOT EXISTS customers_code_idx ON customers(code);
+    CREATE INDEX IF NOT EXISTS suppliers_code_idx ON suppliers(code);
+    CREATE INDEX IF NOT EXISTS materials_code_idx ON materials(code);
+    CREATE INDEX IF NOT EXISTS styles_style_no_idx ON styles(style_no);
+    CREATE INDEX IF NOT EXISTS production_orders_order_no_idx ON production_orders(order_no);
+    CREATE INDEX IF NOT EXISTS cutting_bundles_barcode_idx ON cutting_bundles(barcode);
+    CREATE INDEX IF NOT EXISTS work_tickets_ticket_no_idx ON work_tickets(ticket_no);
+    CREATE INDEX IF NOT EXISTS inventory_transactions_material_idx ON inventory_transactions(material_id);
+    CREATE INDEX IF NOT EXISTS attendance_employee_date_idx ON attendance(employee_id, attendance_date);
+  `;
+
   // 执行SQL
   const allTables = [
+    { name: 'core_tables', sql: coreTables },
     { name: 'quality_tables', sql: qualityTables },
     { name: 'rework_tables', sql: reworkTables },
     { name: 'complete_set_tables', sql: completeSetTables },
@@ -1222,6 +1748,26 @@ async function initFullDemoData(client: any) {
     counts.shipments = demoShipments.length;
   } catch (e) {
     results.push('出货任务已存在或创建失败');
+  }
+
+  // 7. 调用seed-demo-data API获取更完整的演示数据
+  try {
+    // 内部调用seed-demo-data路由
+    const seedResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:5000'}/api/seed-demo-data`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (seedResponse.ok) {
+      const seedData = await seedResponse.json();
+      if (seedData.success) {
+        results.push('✅ 完整演示数据填充成功');
+        results.push(...(seedData.results || []));
+        Object.assign(counts, seedData.counts || {});
+      }
+    }
+  } catch (e) {
+    results.push('⚠️ 完整演示数据填充跳过（可手动调用 /api/seed-demo-data）');
   }
 
   return NextResponse.json({
