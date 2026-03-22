@@ -1,218 +1,194 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-// 获取角色列表
+/**
+ * 角色管理API
+ * GET: 获取角色列表
+ * POST: 创建新角色
+ * PUT: 更新角色权限
+ */
+
 export async function GET(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const { searchParams } = new URL(request.url);
     const includePermissions = searchParams.get('include_permissions') === 'true';
 
-    // 获取角色
-    const { data: roles, error: rolesError } = await client
+    // 获取角色列表
+    const { data: roles, error } = await client
       .from('roles')
       .select('*')
       .order('level', { ascending: true });
 
-    if (rolesError) {
-      return NextResponse.json({ error: rolesError.message }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ success: false, error: '获取角色列表失败' }, { status: 500 });
     }
 
-    if (includePermissions) {
-      // 获取角色权限
-      const { data: rolePermissions } = await client
-        .from('role_permissions')
-        .select('role_id, permission_id, permissions(id, module, action, description)');
-
-      // 获取所有权限
-      const { data: allPermissions } = await client
-        .from('permissions')
-        .select('*')
-        .order('module', { ascending: true });
-
-      // 组装数据
-      const result = roles?.map((role: any) => ({
-        ...role,
-        permissions: rolePermissions?.filter((rp: any) => rp.role_id === role.id)?.map((rp: any) => rp.permissions) || [],
-      }));
+    // 如果需要包含权限信息
+    if (includePermissions && roles) {
+      const rolesWithPermissions = await Promise.all(
+        roles.map(async (role: any) => {
+          const { data: permissions } = await client
+            .from('role_permissions')
+            .select('permission_id')
+            .eq('role_id', role.id);
+          
+          return {
+            ...role,
+            permission_count: permissions?.length || 0,
+            permissions: permissions?.map((p: any) => p.permission_id) || []
+          };
+        })
+      );
 
       return NextResponse.json({
         success: true,
-        data: result,
-        allPermissions,
+        data: rolesWithPermissions
       });
     }
 
-    return NextResponse.json({ success: true, data: roles });
+    return NextResponse.json({
+      success: true,
+      data: roles
+    });
+
   } catch (error) {
     console.error('Get roles error:', error);
-    return NextResponse.json({ error: '获取角色失败' }, { status: 500 });
+    return NextResponse.json({ success: false, error: '获取角色失败' }, { status: 500 });
   }
 }
 
-// 更新角色权限
-export async function PUT(request: NextRequest) {
-  try {
-    const client = getSupabaseClient();
-    const body = await request.json();
-    const { role_id, permission_ids } = body;
-
-    if (!role_id) {
-      return NextResponse.json({ error: '缺少角色ID' }, { status: 400 });
-    }
-
-    // 检查是否为系统角色
-    const { data: role } = await client
-      .from('roles')
-      .select('is_system')
-      .eq('id', role_id)
-      .single();
-
-    if (role?.is_system) {
-      return NextResponse.json({ error: '系统角色不允许修改权限' }, { status: 400 });
-    }
-
-    // 删除旧权限
-    await client
-      .from('role_permissions')
-      .delete()
-      .eq('role_id', role_id);
-
-    // 插入新权限
-    if (permission_ids && permission_ids.length > 0) {
-      const records = permission_ids.map((perm_id: string) => ({
-        id: `rp_${role_id}_${perm_id}`,
-        role_id,
-        permission_id: perm_id,
-      }));
-
-      const { error } = await client
-        .from('role_permissions')
-        .insert(records);
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-    }
-
-    return NextResponse.json({ success: true, message: '权限更新成功' });
-  } catch (error) {
-    console.error('Update role permissions error:', error);
-    return NextResponse.json({ error: '更新权限失败' }, { status: 500 });
-  }
-}
-
-// 创建自定义角色
+/**
+ * 创建或更新角色
+ */
 export async function POST(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { name, display_name, description, level, permission_ids } = body;
+    const { action, roleId, permissionIds } = body;
 
-    if (!name || !display_name) {
-      return NextResponse.json({ error: '缺少必填字段' }, { status: 400 });
-    }
+    if (action === 'update_permissions') {
+      // 更新角色权限
+      if (!roleId || !Array.isArray(permissionIds)) {
+        return NextResponse.json({ 
+          success: false, 
+          error: '参数错误' 
+        }, { status: 400 });
+      }
 
-    // 检查角色名是否已存在
-    const { data: existing } = await client
-      .from('roles')
-      .select('id')
-      .eq('name', name)
-      .single();
-
-    if (existing) {
-      return NextResponse.json({ error: '角色名已存在' }, { status: 400 });
-    }
-
-    // 创建角色
-    const { data: role, error: roleError } = await client
-      .from('roles')
-      .insert({
-        name,
-        display_name,
-        description,
-        level: level || 5,
-        is_system: false,
-      })
-      .select()
-      .single();
-
-    if (roleError) {
-      return NextResponse.json({ error: roleError.message }, { status: 500 });
-    }
-
-    // 分配权限
-    if (permission_ids && permission_ids.length > 0) {
-      const records = permission_ids.map((perm_id: string) => ({
-        id: `rp_${role.id}_${perm_id}`,
-        role_id: role.id,
-        permission_id: perm_id,
-      }));
-
+      // 先删除旧权限
       await client
         .from('role_permissions')
-        .insert(records);
+        .delete()
+        .eq('role_id', roleId);
+
+      // 插入新权限
+      if (permissionIds.length > 0) {
+        const records = permissionIds.map((pid: string) => ({
+          id: `rp_${roleId}_${pid}`,
+          role_id: roleId,
+          permission_id: pid
+        }));
+
+        const { error } = await client
+          .from('role_permissions')
+          .insert(records);
+
+        if (error) {
+          return NextResponse.json({ 
+            success: false, 
+            error: '更新权限失败' 
+          }, { status: 500 });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: '权限更新成功'
+      });
     }
 
-    return NextResponse.json({ success: true, data: role, message: '角色创建成功' });
+    if (action === 'create') {
+      // 创建新角色
+      const { name, displayName, description, level, parentId } = body;
+
+      const { data, error } = await client
+        .from('roles')
+        .insert({
+          id: name.toLowerCase().replace(/\s+/g, '_'),
+          name,
+          display_name: displayName,
+          description,
+          level: level || 5,
+          parent_id: parentId,
+          is_system: false
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json({ 
+          success: false, 
+          error: '创建角色失败',
+          details: error.message 
+        }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data
+      });
+    }
+
+    if (action === 'assign_user') {
+      // 给用户分配角色
+      const { userId, roleIds } = body;
+
+      if (!userId || !Array.isArray(roleIds)) {
+        return NextResponse.json({ 
+          success: false, 
+          error: '参数错误' 
+        }, { status: 400 });
+      }
+
+      // 先删除用户旧角色
+      await client
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      // 插入新角色
+      if (roleIds.length > 0) {
+        const records = roleIds.map((roleId: string) => ({
+          user_id: userId,
+          role_id: roleId
+        }));
+
+        const { error } = await client
+          .from('user_roles')
+          .insert(records);
+
+        if (error) {
+          return NextResponse.json({ 
+            success: false, 
+            error: '分配角色失败' 
+          }, { status: 500 });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: '角色分配成功'
+      });
+    }
+
+    return NextResponse.json({ 
+      success: false, 
+      error: '未知操作' 
+    }, { status: 400 });
+
   } catch (error) {
-    console.error('Create role error:', error);
-    return NextResponse.json({ error: '创建角色失败' }, { status: 500 });
-  }
-}
-
-// 删除角色
-export async function DELETE(request: NextRequest) {
-  try {
-    const client = getSupabaseClient();
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json({ error: '缺少角色ID' }, { status: 400 });
-    }
-
-    // 检查是否为系统角色
-    const { data: role } = await client
-      .from('roles')
-      .select('is_system')
-      .eq('id', id)
-      .single();
-
-    if (role?.is_system) {
-      return NextResponse.json({ error: '系统角色不允许删除' }, { status: 400 });
-    }
-
-    // 检查是否有用户使用此角色
-    const { data: users } = await client
-      .from('user_roles')
-      .select('id')
-      .eq('role_id', id)
-      .limit(1);
-
-    if (users && users.length > 0) {
-      return NextResponse.json({ error: '该角色下有用户，无法删除' }, { status: 400 });
-    }
-
-    // 删除角色权限
-    await client
-      .from('role_permissions')
-      .delete()
-      .eq('role_id', id);
-
-    // 删除角色
-    const { error } = await client
-      .from('roles')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, message: '角色删除成功' });
-  } catch (error) {
-    console.error('Delete role error:', error);
-    return NextResponse.json({ error: '删除角色失败' }, { status: 500 });
+    console.error('Roles POST error:', error);
+    return NextResponse.json({ success: false, error: '操作失败' }, { status: 500 });
   }
 }
