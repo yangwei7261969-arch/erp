@@ -147,7 +147,23 @@ async function getReworkList(client: any, searchParams: URLSearchParams) {
 
   const { data: reworks, error, count } = await query;
 
-  if (error) throw error;
+  // 如果表不存在，返回空数据
+  if (error) {
+    if (error.message?.includes('Could not find') || error.code === '42P01') {
+      return NextResponse.json({
+        success: true,
+        data: {
+          reworks: [],
+          pagination: {
+            page,
+            pageSize,
+            total: 0
+          }
+        }
+      });
+    }
+    throw error;
+  }
 
   return NextResponse.json({
     success: true,

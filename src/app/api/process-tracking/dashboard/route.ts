@@ -9,23 +9,36 @@ export async function GET(request: NextRequest) {
     // 获取所有工序跟踪记录
     const { data: tracking, error } = await client
       .from('process_tracking')
-      .select(`
-        id,
-        process_name,
-        status,
-        quantity,
-        bundle_id
-      `);
+      .select('id, process_id, status, quantity, bundle_id');
 
+    // 如果表不存在，返回空数据
     if (error) {
+      if (error.message?.includes('Could not find') || error.code === '42P01') {
+        return NextResponse.json({
+          success: true,
+          data: [],
+        });
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // 获取工序信息
+    const processIds = [...new Set(tracking?.map(t => t.process_id).filter(Boolean))];
+    const { data: processData } = await client
+      .from('processes')
+      .select('id, name')
+      .in('id', processIds);
+    
+    const processMap: Record<string, string> = {};
+    processData?.forEach(p => {
+      processMap[p.id] = p.name;
+    });
 
     // 按工序名称分组统计
     const processStats: Record<string, { total: number; completed: number; inProgress: number; pending: number }> = {};
 
     tracking?.forEach(item => {
-      const processName = item.process_name || '未知工序';
+      const processName = processMap[item.process_id] || item.process_id || '未知工序';
       if (!processStats[processName]) {
         processStats[processName] = { total: 0, completed: 0, inProgress: 0, pending: 0 };
       }

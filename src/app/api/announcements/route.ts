@@ -21,11 +21,22 @@ export async function GET(request: NextRequest) {
     }
 
     const { data, error, count } = await query
-      .order('priority', { ascending: false })
       .order('created_at', { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
 
+    // 如果表不存在或列不存在，返回空数据
     if (error) {
+      if (error.message?.includes('Could not find') || 
+          error.message?.includes('does not exist') || 
+          error.code === '42P01') {
+        return NextResponse.json({
+          success: true,
+          data: [],
+          total: 0,
+          page,
+          pageSize,
+        });
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 

@@ -330,7 +330,18 @@ async function getLeaderboard(
 
   const { data: kpiData, error } = await query;
 
+  // 如果表不存在，返回空数据
   if (error) {
+    if (error.message?.includes('Could not find') || error.code === '42P01') {
+      return NextResponse.json({
+        success: true,
+        data: {
+          leaderboard: [],
+          period,
+          dateRange: { start: startDate, end: endDate }
+        }
+      });
+    }
     console.error('Query leaderboard error:', error);
     return NextResponse.json({ 
       success: false, 

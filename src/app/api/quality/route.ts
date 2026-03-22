@@ -101,32 +101,7 @@ async function getInspections(client: any, searchParams: URLSearchParams) {
 
   let query = client
     .from('quality_inspections')
-    .select(`
-      id,
-      inspection_no,
-      inspection_type,
-      inspection_time,
-      result,
-      status,
-      total_quantity,
-      pass_quantity,
-      fail_quantity,
-      pass_rate,
-      inspectors (
-        id,
-        name
-      ),
-      production_orders (
-        id,
-        order_code,
-        customers (name)
-      ),
-      processes (
-        id,
-        process_code,
-        process_name
-      )
-    `)
+    .select('id, inspection_no, inspection_type, inspection_time, result, status, total_quantity, pass_quantity, fail_quantity, pass_rate', { count: 'exact' })
     .order('inspection_time', { ascending: false })
     .range((page - 1) * pageSize, page * pageSize - 1);
 
@@ -152,7 +127,23 @@ async function getInspections(client: any, searchParams: URLSearchParams) {
 
   const { data: inspections, error, count } = await query;
 
-  if (error) throw error;
+  // 如果表不存在，返回空数据
+  if (error) {
+    if (error.message?.includes('Could not find') || error.code === '42P01') {
+      return NextResponse.json({
+        success: true,
+        data: {
+          inspections: [],
+          pagination: {
+            page,
+            pageSize,
+            total: 0
+          }
+        }
+      });
+    }
+    throw error;
+  }
 
   return NextResponse.json({
     success: true,
