@@ -14,10 +14,14 @@ export async function GET(request: NextRequest) {
     const schemaPath = path.join(process.cwd(), 'database', 'schema.sql');
     const seedPath1 = path.join(process.cwd(), 'database', 'seed-data-part1.sql');
     const seedPath2 = path.join(process.cwd(), 'database', 'seed-data-part2.sql');
+    const permissionTablesPath = path.join(process.cwd(), 'database', 'permission-tables.sql');
+    const permissionDataPath = path.join(process.cwd(), 'database', 'permission-data.sql');
 
     let schemaSQL = '';
     let seedSQL1 = '';
     let seedSQL2 = '';
+    let permissionTablesSQL = '';
+    let permissionDataSQL = '';
 
     try {
       schemaSQL = fs.readFileSync(schemaPath, 'utf-8');
@@ -37,17 +41,33 @@ export async function GET(request: NextRequest) {
       seedSQL2 = '-- Seed data part2 file not found';
     }
 
+    try {
+      permissionTablesSQL = fs.readFileSync(permissionTablesPath, 'utf-8');
+    } catch {
+      permissionTablesSQL = '-- Permission tables file not found';
+    }
+
+    try {
+      permissionDataSQL = fs.readFileSync(permissionDataPath, 'utf-8');
+    } catch {
+      permissionDataSQL = '-- Permission data file not found';
+    }
+
     return NextResponse.json({
       success: true,
       files: {
         schema: '/database/schema.sql',
         seed_part1: '/database/seed-data-part1.sql',
-        seed_part2: '/database/seed-data-part2.sql'
+        seed_part2: '/database/seed-data-part2.sql',
+        permission_tables: '/database/permission-tables.sql',
+        permission_data: '/database/permission-data.sql'
       },
       sql: {
         schema: schemaSQL,
         seed_part1: seedSQL1,
-        seed_part2: seedSQL2
+        seed_part2: seedSQL2,
+        permission_tables: permissionTablesSQL,
+        permission_data: permissionDataSQL
       }
     });
   } catch (error) {
@@ -79,7 +99,9 @@ export async function POST(request: NextRequest) {
       'bills', 'payments',
       'secondary_processes', 'secondary_process_orders',
       'notifications', 'notification_rules',
-      'system_config', 'operation_logs'
+      'system_config', 'operation_logs',
+      // 权限相关表
+      'permissions', 'role_permissions', 'user_roles', 'user_permissions', 'user_data_permissions'
     ];
 
     // 检查表是否存在

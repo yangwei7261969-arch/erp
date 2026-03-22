@@ -36,6 +36,8 @@ export default function DatabaseInitPage() {
     schema?: string;
     seed_part1?: string;
     seed_part2?: string;
+    permission_tables?: string;
+    permission_data?: string;
   }>({});
   const [activeTab, setActiveTab] = useState('status');
 
@@ -268,7 +270,8 @@ export default function DatabaseInitPage() {
           <p>1. 首先在「状态检查」页面查看当前数据库表状态</p>
           <p>2. 如有缺失的表，前往 Supabase 控制台的 SQL 编辑器</p>
           <p>3. 依次执行以下SQL脚本：schema.sql → seed-data-part1.sql → seed-data-part2.sql</p>
-          <p>4. 执行完成后刷新状态确认所有表已创建</p>
+          <p>4. 如需权限系统，执行：permission-tables.sql → permission-data.sql</p>
+          <p>5. 执行完成后刷新状态确认所有表已创建</p>
         </AlertDescription>
       </Alert>
 
@@ -290,6 +293,14 @@ export default function DatabaseInitPage() {
           <TabsTrigger value="seed2">
             <FileCode className="h-4 w-4 mr-2" />
             测试数据 2
+          </TabsTrigger>
+          <TabsTrigger value="permission_tables">
+            <FileCode className="h-4 w-4 mr-2" />
+            权限表结构
+          </TabsTrigger>
+          <TabsTrigger value="permission_data">
+            <FileCode className="h-4 w-4 mr-2" />
+            权限数据
           </TabsTrigger>
         </TabsList>
 
@@ -319,6 +330,14 @@ export default function DatabaseInitPage() {
 
         <TabsContent value="seed2" className="mt-4">
           {renderSqlContent(sqlContent.seed_part2, '测试数据SQL (第二部分)', 'seed-data-part2.sql')}
+        </TabsContent>
+
+        <TabsContent value="permission_tables" className="mt-4">
+          {renderSqlContent(sqlContent.permission_tables, '权限表结构SQL', 'permission-tables.sql')}
+        </TabsContent>
+
+        <TabsContent value="permission_data" className="mt-4">
+          {renderSqlContent(sqlContent.permission_data, '权限数据SQL', 'permission-data.sql')}
         </TabsContent>
       </Tabs>
     </div>

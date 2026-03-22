@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Search, Settings, LogOut, User, Moon, Sun, Menu } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useAuth } from '@/contexts/AuthContext';
 import NotificationCenter from '@/components/notification/notification-center';
 
 interface HeaderProps {
@@ -23,6 +25,18 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, isMobile }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  // 获取用户显示名称
+  const displayName = user?.name || '用户';
+  const displayEmail = user?.email || 'user@company.com';
+  const displayInitials = displayName.substring(0, 2).toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
@@ -77,15 +91,15 @@ export function Header({ onMenuClick, isMobile }: HeaderProps) {
             <Button variant="ghost" className="relative h-9 w-9 md:h-10 md:w-10 rounded-full">
               <Avatar className="h-9 w-9 md:h-10 md:w-10">
                 <AvatarImage src="" />
-                <AvatarFallback className="text-xs md:text-sm">ADMIN</AvatarFallback>
+                <AvatarFallback className="text-xs md:text-sm">{displayInitials}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">管理员</p>
-                <p className="text-xs text-muted-foreground">admin@company.com</p>
+                <p className="text-sm font-medium">{displayName}</p>
+                <p className="text-xs text-muted-foreground">{displayEmail}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -111,7 +125,7 @@ export function Header({ onMenuClick, isMobile }: HeaderProps) {
               )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600">
+            <DropdownMenuItem className="text-red-600" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               退出登录
             </DropdownMenuItem>

@@ -79,12 +79,21 @@ export default function LoginPage() {
           setError(result.error || '登录失败');
         }
       } else {
-        // 管理员登录（简化处理，实际应接入用户系统）
-        if (loginCode === 'admin' && loginPassword === 'admin123') {
+        // 管理员登录
+        const response = await fetch('/api/auth/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: loginCode, password: loginPassword }),
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          // 保存用户信息和权限到本地存储
+          localStorage.setItem('user_info', JSON.stringify(result.data));
           localStorage.setItem('user_type', 'admin');
           router.push('/');
         } else {
-          setError('账号或密码错误');
+          setError(result.error || '账号或密码错误');
         }
       }
     } catch (err) {

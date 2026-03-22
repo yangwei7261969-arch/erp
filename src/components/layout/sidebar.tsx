@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -46,6 +46,7 @@ import {
   BarChart3,
   Database,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 // 菜单分组结构
 interface MenuItem {
@@ -53,6 +54,7 @@ interface MenuItem {
   icon: LucideIcon;
   href: string;
   roles: string[];
+  permission?: { module: string; action: string }; // 新增权限字段
 }
 
 interface MenuGroup {
@@ -60,6 +62,7 @@ interface MenuGroup {
   icon: LucideIcon;
   items: MenuItem[];
   defaultOpen?: boolean;
+  requiredPermission?: { module: string; action: string }; // 分组权限
 }
 
 const menuGroups: MenuGroup[] = [
@@ -73,19 +76,22 @@ const menuGroups: MenuGroup[] = [
         title: '数据大屏',
         icon: LayoutDashboard,
         href: '/',
-        roles: ['boss', 'manager'],
+        roles: ['boss', 'manager', 'production_manager', 'warehouse', 'qc', 'accountant', 'hr', 'factory_admin', 'admin'],
+        permission: { module: 'dashboard', action: 'view' },
       },
       {
         title: 'MES实时看板',
         icon: Activity,
         href: '/mes-dashboard',
-        roles: ['boss', 'manager', 'production_manager'],
+        roles: ['boss', 'manager', 'production_manager', 'factory_admin'],
+        permission: { module: 'mes', action: 'view' },
       },
       {
         title: '预警系统',
         icon: AlertTriangle,
         href: '/alert-system',
-        roles: ['boss', 'manager', 'production_manager'],
+        roles: ['boss', 'manager', 'production_manager', 'factory_admin'],
+        permission: { module: 'alert', action: 'view' },
       },
     ],
   },
@@ -99,55 +105,64 @@ const menuGroups: MenuGroup[] = [
         title: '生产订单',
         icon: Factory,
         href: '/production',
-        roles: ['production_manager', 'boss'],
+        roles: ['production_manager', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'production', action: 'view' },
       },
       {
         title: '生产准备',
         icon: ClipboardCheck,
         href: '/production-prep',
-        roles: ['production_manager', 'boss'],
+        roles: ['production_manager', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'prep', action: 'view' },
       },
       {
         title: '裁床管理',
         icon: Scissors,
         href: '/cutting',
-        roles: ['cutting_manager'],
+        roles: ['cutting_manager', 'production_manager', 'boss', 'factory_admin'],
+        permission: { module: 'cutting', action: 'view' },
       },
       {
         title: '裁床分扎',
         icon: Layers,
         href: '/cutting-bundles',
-        roles: ['cutting_manager'],
+        roles: ['cutting_manager', 'production_manager', 'boss', 'factory_admin'],
+        permission: { module: 'bundle', action: 'view' },
       },
       {
         title: '条码工票',
         icon: Ticket,
         href: '/work-tickets',
-        roles: ['worker', 'production_manager'],
+        roles: ['worker', 'operator', 'production_manager', 'factory_admin'],
+        permission: { module: 'scan', action: 'view' },
       },
       {
         title: '工序扫码',
         icon: QrCode,
         href: '/process-scan',
-        roles: ['worker', 'production_manager'],
+        roles: ['worker', 'operator', 'production_manager', 'factory_admin'],
+        permission: { module: 'scan', action: 'execute' },
       },
       {
         title: '工序追溯',
         icon: GitBranch,
         href: '/process-tracking',
-        roles: ['production_manager', 'boss'],
+        roles: ['production_manager', 'boss', 'manager', 'qc', 'factory_admin'],
+        permission: { module: 'tracking', action: 'view' },
       },
       {
         title: '二次工艺',
         icon: Palette,
         href: '/craft-processes',
-        roles: ['craft'],
+        roles: ['craft', 'production_manager', 'boss', 'factory_admin'],
+        permission: { module: 'craft', action: 'view' },
       },
       {
         title: '尾部处理',
         icon: FileCheck,
         href: '/finishing',
-        roles: ['production_manager', 'finishing'],
+        roles: ['production_manager', 'finishing', 'boss', 'factory_admin'],
+        permission: { module: 'finished', action: 'view' },
       },
     ],
   },
@@ -161,13 +176,15 @@ const menuGroups: MenuGroup[] = [
         title: '工序管理',
         icon: Cog,
         href: '/processes',
-        roles: ['production_manager', 'boss'],
+        roles: ['production_manager', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'process', action: 'view' },
       },
       {
         title: '款式工序',
         icon: ClipboardList,
         href: '/style-processes',
-        roles: ['production_manager', 'boss'],
+        roles: ['production_manager', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'style_process', action: 'view' },
       },
     ],
   },
@@ -181,7 +198,8 @@ const menuGroups: MenuGroup[] = [
         title: '质量管理',
         icon: ClipboardCheck,
         href: '/quality-management',
-        roles: ['production_manager', 'quality', 'boss'],
+        roles: ['production_manager', 'qc', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'quality', action: 'view' },
       },
     ],
   },
@@ -195,7 +213,8 @@ const menuGroups: MenuGroup[] = [
         title: '成本分析',
         icon: BarChart3,
         href: '/cost-analysis',
-        roles: ['finance', 'boss', 'manager'],
+        roles: ['finance', 'accountant', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'cost', action: 'view' },
       },
     ],
   },
@@ -209,19 +228,22 @@ const menuGroups: MenuGroup[] = [
         title: '物料库存',
         icon: Package,
         href: '/inventory',
-        roles: ['warehouse', 'manager'],
+        roles: ['warehouse', 'manager', 'boss', 'factory_admin'],
+        permission: { module: 'inventory', action: 'view' },
       },
       {
         title: '成衣库存',
         icon: Box,
         href: '/finished-inventory',
-        roles: ['warehouse', 'manager'],
+        roles: ['warehouse', 'manager', 'boss', 'factory_admin'],
+        permission: { module: 'finished', action: 'view' },
       },
       {
         title: '装箱管理',
         icon: Package,
         href: '/packing-management',
-        roles: ['warehouse', 'boss'],
+        roles: ['warehouse', 'boss', 'factory_admin'],
+        permission: { module: 'packing', action: 'view' },
       },
     ],
   },
@@ -235,19 +257,22 @@ const menuGroups: MenuGroup[] = [
         title: '出货日历',
         icon: Calendar,
         href: '/shipping-calendar',
-        roles: ['warehouse', 'boss', 'manager'],
+        roles: ['warehouse', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'shipping', action: 'view' },
       },
       {
         title: '发货任务',
         icon: Truck,
         href: '/shipping-tasks',
-        roles: ['warehouse', 'boss'],
+        roles: ['warehouse', 'boss', 'factory_admin'],
+        permission: { module: 'shipping', action: 'create' },
       },
       {
         title: '出货记录',
         icon: Send,
         href: '/shipment',
-        roles: ['warehouse', 'finance'],
+        roles: ['warehouse', 'finance', 'accountant', 'boss', 'factory_admin'],
+        permission: { module: 'shipping', action: 'view' },
       },
     ],
   },
@@ -261,25 +286,29 @@ const menuGroups: MenuGroup[] = [
         title: '外发订单',
         icon: Send,
         href: '/outsource-orders',
-        roles: ['production_manager', 'boss'],
+        roles: ['production_manager', 'boss', 'manager', 'craft', 'factory_admin'],
+        permission: { module: 'outsource', action: 'view' },
       },
       {
         title: '外发跟踪',
         icon: Truck,
         href: '/outsource-tracking',
-        roles: ['production_manager', 'boss'],
+        roles: ['production_manager', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'outsource', action: 'view' },
       },
       {
         title: '供应商管理',
         icon: Building2,
         href: '/suppliers',
-        roles: ['boss', 'manager'],
+        roles: ['boss', 'manager', 'purchase', 'factory_admin'],
+        permission: { module: 'supplier', action: 'view' },
       },
       {
         title: '供应商付款',
         icon: DollarSign,
         href: '/supplier-payment',
-        roles: ['finance', 'boss'],
+        roles: ['finance', 'accountant', 'boss', 'factory_admin'],
+        permission: { module: 'payment', action: 'view' },
       },
     ],
   },
@@ -293,19 +322,22 @@ const menuGroups: MenuGroup[] = [
         title: '员工管理',
         icon: Users,
         href: '/employees',
-        roles: ['hr', 'boss'],
+        roles: ['hr', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'employee', action: 'view' },
       },
       {
         title: '计件工资',
         icon: Calculator,
         href: '/piece-wages',
-        roles: ['production_manager', 'finance', 'hr'],
+        roles: ['production_manager', 'finance', 'accountant', 'hr', 'worker', 'factory_admin'],
+        permission: { module: 'wage', action: 'view' },
       },
       {
         title: '工资管理',
         icon: DollarSign,
         href: '/salary',
-        roles: ['finance', 'hr'],
+        roles: ['finance', 'accountant', 'hr', 'boss', 'factory_admin'],
+        permission: { module: 'salary', action: 'view' },
       },
     ],
   },
@@ -319,19 +351,22 @@ const menuGroups: MenuGroup[] = [
         title: '财务中心',
         icon: DollarSign,
         href: '/finance',
-        roles: ['finance', 'boss'],
+        roles: ['finance', 'accountant', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'finance', action: 'view' },
       },
       {
         title: '采购管理',
         icon: ShoppingCart,
         href: '/purchase',
-        roles: ['purchase', 'manager'],
+        roles: ['purchase', 'manager', 'boss', 'factory_admin'],
+        permission: { module: 'purchase', action: 'view' },
       },
       {
         title: '客户管理',
         icon: UserCog,
         href: '/customers',
-        roles: ['boss', 'manager'],
+        roles: ['boss', 'manager', 'factory_admin'],
+        permission: { module: 'customer', action: 'view' },
       },
     ],
   },
@@ -346,12 +381,14 @@ const menuGroups: MenuGroup[] = [
         icon: Sparkles,
         href: '/ai-assistant',
         roles: ['all'],
+        permission: { module: 'ai', action: 'view' },
       },
       {
         title: '通知管理',
         icon: Bell,
         href: '/notification-management',
-        roles: ['boss', 'manager', 'production_manager'],
+        roles: ['boss', 'manager', 'production_manager', 'factory_admin'],
+        permission: { module: 'notification', action: 'view' },
       },
       {
         title: '公告中心',
@@ -363,25 +400,29 @@ const menuGroups: MenuGroup[] = [
         title: '权限管理',
         icon: Shield,
         href: '/permissions',
-        roles: ['boss', 'factory_admin'],
+        roles: ['boss', 'admin', 'factory_admin'],
+        permission: { module: 'permission', action: 'view' },
       },
       {
         title: '系统设置',
         icon: Settings,
         href: '/settings',
-        roles: ['admin'],
+        roles: ['admin', 'boss'],
+        permission: { module: 'system', action: 'view' },
       },
       {
         title: '后台管理',
         icon: Shield,
         href: '/admin',
-        roles: ['admin'],
+        roles: ['admin', 'boss'],
+        permission: { module: 'user', action: 'view' },
       },
       {
         title: '数据库初始化',
         icon: Database,
         href: '/database-init',
         roles: ['admin'],
+        permission: { module: 'system', action: 'edit' },
       },
       {
         title: '供应商登录',
@@ -401,6 +442,7 @@ interface SidebarProps {
 export function Sidebar({ className, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const { user, hasPermission, hasRole, isAuthenticated } = useAuth();
 
   // 分组展开状态
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
@@ -413,15 +455,51 @@ export function Sidebar({ className, onMobileClose }: SidebarProps) {
     return initial;
   });
 
+  // 基于用户权限过滤菜单项
+  const filteredMenuGroups = useMemo(() => {
+    if (!isAuthenticated || !user) {
+      // 未登录时只显示公告中心和供应商登录
+      return menuGroups.map(group => ({
+        ...group,
+        items: group.items.filter(item => 
+          item.roles.includes('all') || item.href === '/announcements' || item.href === '/login'
+        ),
+      })).filter(group => group.items.length > 0);
+    }
+
+    return menuGroups.map(group => {
+      const filteredItems = group.items.filter(item => {
+        // 如果 roles 包含 'all'，所有人都可以访问
+        if (item.roles.includes('all')) {
+          return true;
+        }
+        
+        // 如果有权限定义，使用权限检查
+        if (item.permission) {
+          const hasAccess = hasPermission(item.permission.module, item.permission.action);
+          if (hasAccess) return true;
+        }
+        
+        // 降级到角色检查
+        return hasRole(item.roles);
+      });
+      
+      return {
+        ...group,
+        items: filteredItems,
+      };
+    }).filter(group => group.items.length > 0);
+  }, [user, isAuthenticated, hasPermission, hasRole]);
+
   // 当路由变化时，自动展开包含当前页面的分组
   useEffect(() => {
-    menuGroups.forEach((group) => {
+    filteredMenuGroups.forEach((group) => {
       const hasActiveItem = group.items.some((item) => item.href === pathname);
       if (hasActiveItem && !expandedGroups.has(group.title)) {
         setExpandedGroups((prev) => new Set([...prev, group.title]));
       }
     });
-  }, [pathname]);
+  }, [pathname, filteredMenuGroups]);
 
   const toggleGroup = (title: string) => {
     setExpandedGroups((prev) => {
@@ -484,7 +562,7 @@ export function Sidebar({ className, onMobileClose }: SidebarProps) {
       {/* Menu with Groups */}
       <ScrollArea className="flex-1 py-2">
         <nav className="px-2">
-          {menuGroups.map((group) => {
+          {filteredMenuGroups.map((group) => {
             const isExpanded = expandedGroups.has(group.title);
             const hasActiveItem = group.items.some((item) => item.href === pathname);
 
