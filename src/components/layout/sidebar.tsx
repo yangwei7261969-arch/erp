@@ -44,6 +44,7 @@ import {
   Ticket,
   AlertTriangle,
   BarChart3,
+  Database,
 } from 'lucide-react';
 
 // 菜单分组结构
@@ -374,6 +375,12 @@ const menuGroups: MenuGroup[] = [
         title: '后台管理',
         icon: Shield,
         href: '/admin',
+        roles: ['admin'],
+      },
+      {
+        title: '数据库初始化',
+        icon: Database,
+        href: '/database-init',
         roles: ['admin'],
       },
       {
