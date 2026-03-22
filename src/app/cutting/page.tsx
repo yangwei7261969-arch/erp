@@ -48,6 +48,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  FileCheck,
+  XCircle,
 } from 'lucide-react';
 
 interface CuttingOrder {
@@ -133,6 +135,20 @@ export default function CuttingPage() {
     notes: '',
     size_breakdown: {} as Record<string, number>,
   });
+
+  // 数量检查相关状态
+  const [checkingOpen, setCheckingOpen] = useState(false);
+  const [checkingProgress, setCheckingProgress] = useState(0);
+  const [checkingResults, setCheckingResults] = useState<{
+    order_no: string;
+    style_no: string;
+    color: string;
+    cutting_qty: number;
+    expected_qty: number;
+    status: 'pass' | 'warning' | 'error';
+    message: string;
+  }[]>([]);
+  const [isChecking, setIsChecking] = useState(false);
 
   const fetchCuttingOrders = async () => {
     setLoading(true);
@@ -384,6 +400,71 @@ export default function CuttingPage() {
                 Math.max(cuttingOrders.reduce((sum, o) => sum + Number(o.completed_qty), 0), 1) * 100,
   };
 
+  // 检查裁床数量
+  const handleCheckQuantities = async () => {
+    setIsChecking(true);
+    setCheckingOpen(true);
+    setCheckingProgress(0);
+    setCheckingResults([]);
+
+    const results: typeof checkingResults = [];
+
+    for (let i = 0; i < cuttingOrders.length; i++) {
+      const order = cuttingOrders[i];
+      
+      // 模拟检查过程（实际项目中应该调用API检查）
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // 检查逻辑
+      let status: 'pass' | 'warning' | 'error' = 'pass';
+      let message = '数量正确';
+
+      // 检查1: 裁床数量是否大于0
+      if (order.cutting_qty <= 0) {
+        status = 'error';
+        message = '裁床数量为0，请检查';
+      }
+      // 检查2: 完成数量是否超过裁床数量
+      else if (order.completed_qty > order.cutting_qty) {
+        status = 'error';
+        message = `完成数量(${order.completed_qty})超过裁床数量(${order.cutting_qty})`;
+      }
+      // 检查3: 待开始状态但已有完成数量
+      else if (order.status === 'pending' && order.completed_qty > 0) {
+        status = 'warning';
+        message = '状态为待开始，但已有完成数量';
+      }
+      // 检查4: 已完成状态但数量不匹配
+      else if (order.status === 'completed' && order.completed_qty < order.cutting_qty) {
+        status = 'warning';
+        message = `状态为已完成，但完成数量(${order.completed_qty})小于裁床数量(${order.cutting_qty})`;
+      }
+      // 检查5: 次品率检查
+      else if (order.completed_qty > 0 && order.defective_qty > 0) {
+        const defectRate = (order.defective_qty / order.completed_qty) * 100;
+        if (defectRate > 5) {
+          status = 'warning';
+          message = `次品率过高: ${defectRate.toFixed(1)}%`;
+        }
+      }
+
+      results.push({
+        order_no: order.order_no,
+        style_no: order.style_no,
+        color: order.color,
+        cutting_qty: order.cutting_qty,
+        expected_qty: order.cutting_qty, // 实际项目中应该从生产订单获取预期数量
+        status,
+        message,
+      });
+
+      setCheckingProgress(((i + 1) / cuttingOrders.length) * 100);
+      setCheckingResults([...results]);
+    }
+
+    setIsChecking(false);
+  };
+
   // 计算总载数量
   const totalCuttingQty = beds.reduce((sum, bed) => sum + bed.cutting_qty, 0);
 
@@ -394,10 +475,24 @@ export default function CuttingPage() {
           <h1 className="text-3xl font-bold">裁床管理</h1>
           <p className="text-muted-foreground">管理裁床单、分床、尺码配比</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          新建裁床单
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleCheckQuantities}
+            disabled={cuttingOrders.length === 0 || isChecking}
+          >
+            {isChecking ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileCheck className="mr-2 h-4 w-4" />
+            )}
+            检查数量
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            新建裁床单
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -953,6 +1048,144 @@ export default function CuttingPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 数量检查弹窗 */}
+      <Dialog open={checkingOpen} onOpenChange={setCheckingOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileCheck className="h-5 w-5" />
+              裁床数量检查报告
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            {/* 检查进度 */}
+            {isChecking && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>正在检查...</span>
+                  <span>{Math.round(checkingProgress)}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${checkingProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 检查结果汇总 */}
+            {!isChecking && checkingResults.length > 0 && (
+              <>
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="bg-green-50 border-green-200">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <div>
+                          <div className="text-sm text-green-600">检查通过</div>
+                          <div className="text-2xl font-bold text-green-700">
+                            {checkingResults.filter(r => r.status === 'pass').length}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-yellow-50 border-yellow-200">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                        <div>
+                          <div className="text-sm text-yellow-600">警告</div>
+                          <div className="text-2xl font-bold text-yellow-700">
+                            {checkingResults.filter(r => r.status === 'warning').length}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-red-50 border-red-200">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2">
+                        <XCircle className="h-5 w-5 text-red-600" />
+                        <div>
+                          <div className="text-sm text-red-600">错误</div>
+                          <div className="text-2xl font-bold text-red-700">
+                            {checkingResults.filter(r => r.status === 'error').length}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* 详细结果列表 */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">检查详情</Label>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>裁床单号</TableHead>
+                        <TableHead>款号</TableHead>
+                        <TableHead>颜色</TableHead>
+                        <TableHead className="text-right">裁床数量</TableHead>
+                        <TableHead>状态</TableHead>
+                        <TableHead>说明</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {checkingResults.map((result, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-mono">{result.order_no}</TableCell>
+                          <TableCell>{result.style_no}</TableCell>
+                          <TableCell>{result.color}</TableCell>
+                          <TableCell className="text-right font-medium">{result.cutting_qty}</TableCell>
+                          <TableCell>
+                            {result.status === 'pass' && (
+                              <Badge className="bg-green-100 text-green-800">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                通过
+                              </Badge>
+                            )}
+                            {result.status === 'warning' && (
+                              <Badge className="bg-yellow-100 text-yellow-800">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                警告
+                              </Badge>
+                            )}
+                            {result.status === 'error' && (
+                              <Badge className="bg-red-100 text-red-800">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                错误
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">{result.message}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+
+            {/* 无数据提示 */}
+            {!isChecking && checkingResults.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                暂无检查结果
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCheckingOpen(false)}>
+              关闭
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

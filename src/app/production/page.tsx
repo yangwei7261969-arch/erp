@@ -102,6 +102,50 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   cancelled: { label: '已取消', variant: 'destructive' },
 };
 
+// 颜色名称到实际颜色的映射
+const colorMap: Record<string, string> = {
+  '白色': '#FFFFFF',
+  '黑色': '#000000',
+  '红色': '#DC2626',
+  '蓝色': '#2563EB',
+  '绿色': '#16A34A',
+  '黄色': '#EAB308',
+  '橙色': '#EA580C',
+  '紫色': '#9333EA',
+  '粉色': '#EC4899',
+  '灰色': '#6B7280',
+  '深灰': '#374151',
+  '浅灰': '#D1D5DB',
+  '藏青': '#1E3A5F',
+  '卡其': '#C3B091',
+  '米色': '#F5F5DC',
+  '咖啡': '#6F4E37',
+  '棕色': '#A0522D',
+  '深蓝': '#1E40AF',
+  '浅蓝': '#60A5FA',
+  '军绿': '#4D5D53',
+  '墨绿': '#2F4F4F',
+  '酒红': '#722F37',
+  '杏色': '#FFDAB9',
+  '花灰': '#B8B8B8',
+};
+
+// 获取颜色对应的色值
+const getColorValue = (colorName: string): string => {
+  // 尝试直接匹配
+  if (colorMap[colorName]) {
+    return colorMap[colorName];
+  }
+  // 尝试部分匹配
+  for (const [name, value] of Object.entries(colorMap)) {
+    if (colorName.includes(name) || name.includes(colorName)) {
+      return value;
+    }
+  }
+  // 默认返回灰色
+  return '#9CA3AF';
+};
+
 export default function ProductionPage() {
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -463,9 +507,16 @@ export default function ProductionPage() {
                         </Badge>
                       </div>
 
+                      {/* 颜色醒目显示 */}
                       <div className="mt-2 flex items-center gap-4 text-xs">
-                        <span>{order.color}</span>
-                        <span>{order.quantity}件</span>
+                        <div className="flex items-center gap-1.5">
+                          <div 
+                            className="w-4 h-4 rounded-full border border-gray-200 shadow-sm flex-shrink-0"
+                            style={{ backgroundColor: getColorValue(order.color) }}
+                          />
+                          <span className="font-bold text-sm">{order.color}</span>
+                        </div>
+                        <span className="text-sm font-medium">{order.quantity}件</span>
                       </div>
 
                       {/* 进度条 */}
@@ -560,8 +611,14 @@ export default function ProductionPage() {
                         <td className="py-3 px-2 font-bold">{order.style_no}</td>
                         <td className="py-3 px-2">{order.style_name}</td>
                         <td className="py-3 px-2">
-                          <span>{order.color}</span>
-                          {order.size && <span className="text-muted-foreground"> / {order.size}</span>}
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-5 h-5 rounded-full border border-gray-200 shadow-sm flex-shrink-0"
+                              style={{ backgroundColor: getColorValue(order.color) }}
+                            />
+                            <span className="font-bold">{order.color}</span>
+                            {order.size && <span className="text-muted-foreground text-sm">/ {order.size}</span>}
+                          </div>
                         </td>
                         <td className="py-3 px-2 font-medium">{order.quantity.toLocaleString()}</td>
                         <td className="py-3 px-2">
