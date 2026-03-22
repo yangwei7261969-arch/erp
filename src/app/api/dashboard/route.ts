@@ -2,575 +2,562 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 /**
- * 老板驾驶舱API
+ * 统一仪表盘API
  * 
- * 一键看到：
- * • 今日产量
- * • 延期订单
- * • 利润
- * • 工厂效率
- * • KPI排行榜
- * • 预警信息
+ * 合并功能：
+ * • 统计概览
+ * • 告警信息
+ * • 趋势数据
+ * • 关键指标
  */
-
 export async function GET(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const action = searchParams.get('action') || 'overview';
 
-    // 并行获取所有数据
-    const [
-      todayProduction,
-      delayedOrders,
-      profitSummary,
-      efficiencyData,
-      kpiLeaderboard,
-      alerts,
-      lineStatus,
-      qualityStats
-    ] = await Promise.all([
-      getTodayProduction(client, date),
-      getDelayedOrders(client),
-      getProfitSummary(client, date),
-      getEfficiencyData(client, date),
-      getKPILeaderboard(client, date),
-      getAlerts(client),
-      getLineStatus(client),
-      getQualityStats(client, date)
-    ]);
-
-    // 计算综合评分
-    const overallScore = calculateOverallScore({
-      efficiency: efficiencyData.avgEfficiency,
-      quality: qualityStats.passRate,
-      onTime: delayedOrders.rate,
-      profit: profitSummary.profitRate
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        date,
-        overallScore,
-        
-        // 核心指标
-        coreMetrics: {
-          todayProduction: todayProduction.totalQuantity,
-          yesterdayComparison: todayProduction.comparison,
-          delayedOrders: delayedOrders.count,
-          delayRate: delayedOrders.rate,
-          todayRevenue: profitSummary.todayRevenue,
-          todayProfit: profitSummary.todayProfit,
-          profitRate: profitSummary.profitRate,
-          avgEfficiency: efficiencyData.avgEfficiency
-        },
-
-        // 今日产量
-        production: todayProduction,
-
-        // 延期订单
-        delays: delayedOrders,
-
-        // 利润数据
-        profit: profitSummary,
-
-        // 效率数据
-        efficiency: efficiencyData,
-
-        // KPI排行榜
-        leaderboard: kpiLeaderboard,
-
-        // 预警信息
-        alerts,
-
-        // 产线状态
-        lineStatus,
-
-        // 质量统计
-        quality: qualityStats,
-
-        // 趋势数据（最近7天）
-        trends: await getTrends(client, 7)
-      }
-    });
-
+    switch (action) {
+      case 'overview':
+        return await getOverviewStats(client);
+      case 'alerts':
+        return await getAlerts(client, searchParams);
+      case 'production':
+        return await getProductionStats(client, searchParams);
+      case 'quality':
+        return await getQualityStats(client, searchParams);
+      case 'inventory':
+        return await getInventoryStats(client);
+      case 'financial':
+        return await getFinancialStats(client, searchParams);
+      case 'trends':
+        return await getTrends(client, searchParams);
+      case 'kpis':
+        return await getKPIs(client);
+      default:
+        return await getOverviewStats(client);
+    }
   } catch (error) {
-    console.error('Dashboard error:', error);
-    return NextResponse.json({ success: false, error: '获取驾驶舱数据失败' }, { status: 500 });
+    console.error('Dashboard API error:', error);
+    return NextResponse.json({ success: false, error: '获取数据失败' }, { status: 500 });
   }
 }
 
 /**
- * 获取今日产量
+ * 总览统计
  */
-async function getTodayProduction(client: any, date: string) {
-  const startDate = `${date}T00:00:00Z`;
-  const endDate = `${date}T23:59:59Z`;
+async function getOverviewStats(client: any) {
+  const today = new Date().toISOString().split('T')[0];
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
-  // 今日完成数量
-  const { data: todayData } = await client
-    .from('process_tracking')
-    .select('quantity_completed')
-    .gte('end_time', startDate)
-    .lte('end_time', endDate)
-    .eq('status', 'completed');
+  // 并行获取各项统计
+  const [
+    orderStats,
+    productionStats,
+    qualityStats,
+    inventoryStats
+  ] = await Promise.all([
+    getOrderStatistics(client, monthStart),
+    getProductionStatistics(client, today),
+    getQualityStatistics(client, monthStart),
+    getInventoryStatistics(client)
+  ]);
 
-  const totalQuantity = todayData?.reduce((sum: number, t: any) => 
-    sum + (t.quantity_completed || 0), 0) || 0;
-
-  // 昨日同期
-  const yesterday = new Date(date);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-  const yesterdayStart = `${yesterdayStr}T00:00:00Z`;
-  const yesterdayEnd = `${yesterdayStr}T23:59:59Z`;
-
-  const { data: yesterdayData } = await client
-    .from('process_tracking')
-    .select('quantity_completed')
-    .gte('end_time', yesterdayStart)
-    .lte('end_time', yesterdayEnd)
-    .eq('status', 'completed');
-
-  const yesterdayQuantity = yesterdayData?.reduce((sum: number, t: any) => 
-    sum + (t.quantity_completed || 0), 0) || 0;
-
-  const comparison = yesterdayQuantity > 0 
-    ? Math.round((totalQuantity - yesterdayQuantity) / yesterdayQuantity * 100)
-    : 0;
-
-  // 按产线统计
-  const { data: lineData } = await client
-    .from('process_tracking')
-    .select(`
-      quantity_completed,
-      employees (production_line_id, production_lines (name))
-    `)
-    .gte('end_time', startDate)
-    .lte('end_time', endDate)
-    .eq('status', 'completed');
-
-  const byLine: Record<string, number> = {};
-  lineData?.forEach((item: any) => {
-    const lineName = item.employees?.production_lines?.name || '未分配';
-    byLine[lineName] = (byLine[lineName] || 0) + (item.quantity_completed || 0);
-  });
-
-  return {
-    totalQuantity,
-    yesterdayQuantity,
-    comparison,
-    byLine,
-    hourly: await getHourlyProduction(client, date)
-  };
-}
-
-/**
- * 获取每小时产量
- */
-async function getHourlyProduction(client: any, date: string) {
-  const { data } = await client
-    .from('process_tracking')
-    .select('quantity_completed, end_time')
-    .gte('end_time', `${date}T00:00:00Z`)
-    .lte('end_time', `${date}T23:59:59Z`)
-    .eq('status', 'completed');
-
-  const hourly: Record<number, number> = {};
-  for (let i = 0; i < 24; i++) hourly[i] = 0;
-
-  data?.forEach((item: any) => {
-    if (item.end_time) {
-      const hour = new Date(item.end_time).getHours();
-      hourly[hour] += item.quantity_completed || 0;
+  return NextResponse.json({
+    success: true,
+    data: {
+      orders: orderStats,
+      production: productionStats,
+      quality: qualityStats,
+      inventory: inventoryStats,
+      lastUpdated: new Date().toISOString()
     }
   });
-
-  return Object.entries(hourly).map(([hour, qty]) => ({
-    hour: parseInt(hour),
-    quantity: qty
-  }));
 }
 
-/**
- * 获取延期订单
- */
-async function getDelayedOrders(client: any) {
-  const today = new Date().toISOString().split('T')[0];
-
-  // 未完成且已过交期的订单
-  const { data: delayed } = await client
+async function getOrderStatistics(client: any, monthStart: string) {
+  // 本月订单统计
+  const { data: orders } = await client
     .from('production_orders')
-    .select(`
-      id,
-      order_code,
-      delivery_date,
-      status,
-      customers (name),
-      styles (style_name)
-    `)
-    .lt('delivery_date', today)
-    .not('status', 'eq', 'completed');
+    .select('status, quantity, completed_quantity')
+    .gte('created_at', monthStart);
 
-  // 即将到期的订单（3天内）
-  const threeDaysLater = new Date();
-  threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-  
-  const { data: upcoming } = await client
+  const total = orders?.length || 0;
+  const inProduction = orders?.filter((o: any) => o.status === 'in_production').length || 0;
+  const completed = orders?.filter((o: any) => o.status === 'completed').length || 0;
+  const pending = orders?.filter((o: any) => o.status === 'pending').length || 0;
+
+  return { total, inProduction, completed, pending };
+}
+
+async function getProductionStatistics(client: any, today: string) {
+  // 今日生产统计
+  const { data: tracking } = await client
+    .from('process_tracking')
+    .select('quantity, created_at')
+    .gte('created_at', `${today}T00:00:00Z`);
+
+  const todayOutput = tracking?.reduce((sum: number, t: any) => sum + (t.quantity || 0), 0) || 0;
+
+  // 在产订单
+  const { count: activeOrders } = await client
     .from('production_orders')
-    .select(`
-      id,
-      order_code,
-      delivery_date,
-      status,
-      progress,
-      customers (name),
-      styles (style_name)
-    `)
-    .gte('delivery_date', today)
-    .lte('delivery_date', threeDaysLater.toISOString().split('T')[0])
-    .not('status', 'eq', 'completed');
-
-  // 统计总订单数
-  const { count: total } = await client
-    .from('production_orders')
-    .select('*', { count: 'exact', head: true });
-
-  const delayedCount = delayed?.length || 0;
-  const rate = total ? Math.round(delayedCount / total * 100) : 0;
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'in_production');
 
   return {
-    count: delayedCount,
-    rate,
-    delayed: delayed?.slice(0, 10) || [],
-    upcoming: upcoming?.slice(0, 10) || []
+    todayOutput,
+    activeOrders: activeOrders || 0
   };
 }
 
-/**
- * 获取利润汇总
- */
-async function getProfitSummary(client: any, date: string) {
-  // 今日利润
-  const { data: todayCosts } = await client
-    .from('order_costs')
-    .select('gross_profit, order_amount, profit_rate')
-    .gte('created_at', `${date}T00:00:00Z`)
-    .lte('created_at', `${date}T23:59:59Z`);
-
-  const todayRevenue = todayCosts?.reduce((sum: number, c: any) => 
-    sum + (c.order_amount || 0), 0) || 0;
-  const todayProfit = todayCosts?.reduce((sum: number, c: any) => 
-    sum + (c.gross_profit || 0), 0) || 0;
-  const profitRate = todayRevenue > 0 ? Math.round(todayProfit / todayRevenue * 100) : 0;
-
-  // 本月利润
-  const monthStart = date.substring(0, 7) + '-01';
-  const { data: monthCosts } = await client
-    .from('order_costs')
-    .select('gross_profit, order_amount')
-    .gte('created_at', `${monthStart}T00:00:00Z`);
-
-  const monthRevenue = monthCosts?.reduce((sum: number, c: any) => 
-    sum + (c.order_amount || 0), 0) || 0;
-  const monthProfit = monthCosts?.reduce((sum: number, c: any) => 
-    sum + (c.gross_profit || 0), 0) || 0;
-
-  // 成本构成
-  const { data: costBreakdown } = await client
-    .from('order_costs')
-    .select('material_cost, labor_cost, outsource_cost, shipping_cost')
-    .gte('created_at', `${monthStart}T00:00:00Z`);
-
-  const breakdown = {
-    material: 0,
-    labor: 0,
-    outsource: 0,
-    shipping: 0
-  };
-
-  costBreakdown?.forEach((c: any) => {
-    breakdown.material += c.material_cost || 0;
-    breakdown.labor += c.labor_cost || 0;
-    breakdown.outsource += c.outsource_cost || 0;
-    breakdown.shipping += c.shipping_cost || 0;
-  });
-
-  return {
-    todayRevenue,
-    todayProfit,
-    profitRate,
-    monthRevenue,
-    monthProfit,
-    breakdown
-  };
-}
-
-/**
- * 获取效率数据
- */
-async function getEfficiencyData(client: any, date: string) {
-  const { data: kpiData } = await client
-    .from('employee_kpi_daily')
-    .select('efficiency_rate, quality_rate, total_quantity')
-    .eq('date', date);
-
-  if (!kpiData || kpiData.length === 0) {
-    return {
-      avgEfficiency: 0,
-      avgQuality: 0,
-      totalWorkers: 0,
-      topPerformers: [],
-      lowPerformers: []
-    };
-  }
-
-  const avgEfficiency = kpiData.reduce((sum: number, k: any) => 
-    sum + (k.efficiency_rate || 0), 0) / kpiData.length;
-  
-  const avgQuality = kpiData.reduce((sum: number, k: any) => 
-    sum + (k.quality_rate || 0), 0) / kpiData.length;
-
-  // 获取详细数据（包含员工信息）
-  const { data: detailedKpi } = await client
-    .from('employee_kpi_daily')
-    .select(`
-      efficiency_rate,
-      total_quantity,
-      employees (name)
-    `)
-    .eq('date', date)
-    .order('efficiency_rate', { ascending: false });
-
-  const topPerformers = detailedKpi?.slice(0, 5).map((k: any) => ({
-    name: k.employees?.name,
-    efficiency: Math.round(k.efficiency_rate * 100) / 100,
-    quantity: k.total_quantity
-  })) || [];
-
-  const lowPerformers = detailedKpi?.slice(-5).reverse().map((k: any) => ({
-    name: k.employees?.name,
-    efficiency: Math.round(k.efficiency_rate * 100) / 100,
-    quantity: k.total_quantity
-  })) || [];
-
-  return {
-    avgEfficiency: Math.round(avgEfficiency * 100) / 100,
-    avgQuality: Math.round(avgQuality * 100) / 100,
-    totalWorkers: kpiData.length,
-    topPerformers,
-    lowPerformers
-  };
-}
-
-/**
- * 获取KPI排行榜
- */
-async function getKPILeaderboard(client: any, date: string) {
-  const monthStart = date.substring(0, 7) + '-01';
-
-  const { data } = await client
-    .from('employee_kpi_daily')
-    .select(`
-      employee_id,
-      employees (name, employee_code),
-      sum_total_quantity:total_quantity.sum(),
-      avg_efficiency:efficiency_rate.avg(),
-      avg_quality:quality_rate.avg()
-    `)
-    .gte('date', monthStart)
-    .order('avg_efficiency', { ascending: false })
-    .limit(10);
-
-  return {
-    byEfficiency: data?.map((item: any, index: number) => ({
-      rank: index + 1,
-      employee_id: item.employee_id,
-      name: item.employees?.name,
-      code: item.employees?.employee_code,
-      totalQuantity: item.sum_total_quantity,
-      efficiency: Math.round(item.avg_efficiency * 100) / 100,
-      quality: Math.round(item.avg_quality * 100) / 100
-    })) || []
-  };
-}
-
-/**
- * 获取预警信息
- */
-async function getAlerts(client: any) {
-  const { data: exceptions } = await client
-    .from('exceptions')
-    .select(`
-      id,
-      type,
-      severity,
-      title,
-      created_at,
-      exception_types (name, color)
-    `)
-    .eq('status', 'open')
-    .order('severity', { ascending: false })
-    .limit(10);
-
-  const critical = exceptions?.filter((e: any) => e.severity === 'critical').length || 0;
-  const high = exceptions?.filter((e: any) => e.severity === 'high').length || 0;
-  const medium = exceptions?.filter((e: any) => e.severity === 'medium').length || 0;
-
-  return {
-    total: exceptions?.length || 0,
-    critical,
-    high,
-    medium,
-    items: exceptions?.slice(0, 5) || []
-  };
-}
-
-/**
- * 获取产线状态
- */
-async function getLineStatus(client: any) {
-  const { data: lines } = await client
-    .from('production_lines')
-    .select(`
-      id,
-      name,
-      status,
-      capacity,
-      employees (id)
-    `);
-
-  const lineStatus = await Promise.all(
-    (lines || []).map(async (line: any) => {
-      // 获取当前在产订单
-      const { count: activeOrders } = await client
-        .from('production_orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('production_line_id', line.id)
-        .eq('status', 'in_production');
-
-      return {
-        id: line.id,
-        name: line.name,
-        status: line.status,
-        capacity: line.capacity,
-        workers: line.employees?.length || 0,
-        activeOrders: activeOrders || 0
-      };
-    })
-  );
-
-  return lineStatus;
-}
-
-/**
- * 获取质量统计
- */
-async function getQualityStats(client: any, date: string) {
+async function getQualityStatistics(client: any, monthStart: string) {
+  // 本月质检统计
   const { data: inspections } = await client
-    .from('quality_inspections')
+    .from('quality_iqc')
     .select('result')
-    .gte('inspection_time', `${date}T00:00:00Z`)
-    .lte('inspection_time', `${date}T23:59:59Z`);
+    .gte('created_at', monthStart);
 
   const total = inspections?.length || 0;
-  const passed = inspections?.filter((i: any) => i.result === 'pass').length || 0;
-  const passRate = total > 0 ? Math.round(passed / total * 100) : 0;
+  const passed = inspections?.filter((i: any) => i.result === 'passed').length || 0;
+  const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
 
-  // 缺陷统计
-  const { data: defects } = await client
-    .from('quality_defects')
-    .select('defect_type, quantity')
-    .gte('created_at', `${date}T00:00:00Z`);
+  return { total, passed, passRate };
+}
 
-  const defectByType: Record<string, number> = {};
-  defects?.forEach((d: any) => {
-    defectByType[d.defect_type] = (defectByType[d.defect_type] || 0) + (d.quantity || 1);
+async function getInventoryStatistics(client: any) {
+  // 库存预警
+  const { data: materials } = await client
+    .from('materials')
+    .select('id, code, name, safety_stock');
+
+  const { data: inventory } = await client
+    .from('inventory')
+    .select('material_id, quantity');
+
+  const inventoryMap = new Map();
+  inventory?.forEach((i: any) => {
+    const current = inventoryMap.get(i.material_id) || 0;
+    inventoryMap.set(i.material_id, current + parseFloat(i.quantity || 0));
   });
 
-  return {
-    total,
-    passed,
-    passRate,
-    defectByType
-  };
+  let lowStock = 0;
+  let outOfStock = 0;
+
+  materials?.forEach((m: any) => {
+    const qty = inventoryMap.get(m.id) || 0;
+    const safety = parseFloat(m.safety_stock || 0);
+    if (qty === 0) outOfStock++;
+    else if (safety > 0 && qty < safety) lowStock++;
+  });
+
+  return { lowStock, outOfStock };
 }
 
 /**
- * 获取趋势数据
+ * 告警信息
  */
-async function getTrends(client: any, days: number) {
-  const trends = [];
-  const today = new Date();
+async function getAlerts(client: any, searchParams: URLSearchParams) {
+  const type = searchParams.get('type') || 'all';
+  const limit = parseInt(searchParams.get('limit') || '20');
 
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
+  const alerts: any[] = [];
 
-    // 产量
-    const { data: production } = await client
-      .from('process_tracking')
-      .select('quantity_completed')
-      .gte('end_time', `${dateStr}T00:00:00Z`)
-      .lte('end_time', `${dateStr}T23:59:59Z`)
-      .eq('status', 'completed');
+  // 1. 库存告警
+  if (type === 'all' || type === 'inventory') {
+    const { data: lowStock } = await client
+      .from('materials')
+      .select(`
+        id, code, name, safety_stock,
+        inventory (quantity)
+      `)
+      .eq('is_active', true);
 
-    const quantity = production?.reduce((sum: number, p: any) => 
-      sum + (p.quantity_completed || 0), 0) || 0;
-
-    // 效率
-    const { data: kpi } = await client
-      .from('employee_kpi_daily')
-      .select('efficiency_rate')
-      .eq('date', dateStr);
-
-    const efficiency = kpi && kpi.length > 0
-      ? kpi.reduce((sum: number, k: any) => sum + (k.efficiency_rate || 0), 0) / kpi.length
-      : 0;
-
-    // 利润
-    const { data: costs } = await client
-      .from('order_costs')
-      .select('gross_profit')
-      .gte('created_at', `${dateStr}T00:00:00Z`)
-      .lte('created_at', `${dateStr}T23:59:59Z`);
-
-    const profit = costs?.reduce((sum: number, c: any) => 
-      sum + (c.gross_profit || 0), 0) || 0;
-
-    trends.push({
-      date: dateStr,
-      quantity,
-      efficiency: Math.round(efficiency * 100) / 100,
-      profit
+    lowStock?.forEach((m: any) => {
+      const qty = m.inventory?.reduce((sum: number, i: any) => sum + parseFloat(i.quantity || 0), 0) || 0;
+      if (m.safety_stock && qty < m.safety_stock) {
+        alerts.push({
+          type: 'inventory',
+          level: qty === 0 ? 'critical' : 'warning',
+          title: qty === 0 ? '物料缺货' : '库存不足',
+          message: `${m.name} (${m.code}) 库存: ${qty}, 安全库存: ${m.safety_stock}`,
+          referenceId: m.id,
+          createdAt: new Date().toISOString()
+        });
+      }
     });
   }
 
-  return trends;
+  // 2. 生产告警
+  if (type === 'all' || type === 'production') {
+    // 逾期订单
+    const today = new Date().toISOString().split('T')[0];
+    const { data: overdue } = await client
+      .from('production_orders')
+      .select('id, order_no, style_name, plan_end_date, quantity, completed_quantity')
+      .lt('plan_end_date', today)
+      .neq('status', 'completed');
+
+    overdue?.forEach((o: any) => {
+      alerts.push({
+        type: 'production',
+        level: 'critical',
+        title: '订单逾期',
+        message: `订单 ${o.order_no} (${o.style_name}) 已逾期，进度: ${o.completed_quantity}/${o.quantity}`,
+        referenceId: o.id,
+        createdAt: new Date().toISOString()
+      });
+    });
+  }
+
+  // 3. 质量告警
+  if (type === 'all' || type === 'quality') {
+    const { data: defects } = await client
+      .from('quality_defects')
+      .select('*')
+      .eq('status', 'open')
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
+    if (defects && defects.length > 0) {
+      alerts.push({
+        type: 'quality',
+        level: 'warning',
+        title: '待处理缺陷',
+        message: `有 ${defects.length} 个缺陷待处理`,
+        referenceId: null,
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
+  // 按级别和类型排序
+  alerts.sort((a, b) => {
+    if (a.level === 'critical' && b.level !== 'critical') return -1;
+    if (a.level !== 'critical' && b.level === 'critical') return 1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  return NextResponse.json({
+    success: true,
+    data: alerts.slice(0, limit),
+    summary: {
+      total: alerts.length,
+      critical: alerts.filter(a => a.level === 'critical').length,
+      warning: alerts.filter(a => a.level === 'warning').length
+    }
+  });
 }
 
 /**
- * 计算综合评分
+ * 生产统计详情
  */
-function calculateOverallScore(data: {
-  efficiency: number;
-  quality: number;
-  onTime: number;
-  profit: number;
-}) {
-  // 加权平均：效率30%，质量30%，准时率20%，利润率20%
-  const efficiencyScore = Math.min(data.efficiency, 150) / 150 * 100;
-  const qualityScore = data.quality;
-  const onTimeScore = 100 - data.onTime; // 延期率越低越好
-  const profitScore = Math.min(data.profit, 50) / 50 * 100;
+async function getProductionStats(client: any, searchParams: URLSearchParams) {
+  const period = searchParams.get('period') || 'today';
 
-  const overall = 
-    efficiencyScore * 0.3 +
-    qualityScore * 0.3 +
-    onTimeScore * 0.2 +
-    profitScore * 0.2;
+  let startDate: string;
+  const today = new Date();
 
-  return Math.round(overall);
+  switch (period) {
+    case 'week':
+      startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      break;
+    case 'month':
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+      break;
+    default:
+      startDate = today.toISOString().split('T')[0];
+  }
+
+  // 获取生产进度
+  const { data: orders } = await client
+    .from('production_orders')
+    .select(`
+      id, order_no, style_no, style_name, quantity, completed_quantity, status,
+      production_progress (quantity, defective_qty)
+    `)
+    .gte('created_at', startDate);
+
+  // 按状态统计
+  const byStatus = {
+    pending: orders?.filter((o: any) => o.status === 'pending').length || 0,
+    inProduction: orders?.filter((o: any) => o.status === 'in_production').length || 0,
+    completed: orders?.filter((o: any) => o.status === 'completed').length || 0
+  };
+
+  // 总产量
+  const totalOutput = orders?.reduce((sum: number, o: any) => sum + (o.completed_quantity || 0), 0) || 0;
+
+  // 完成率
+  const totalQty = orders?.reduce((sum: number, o: any) => sum + (o.quantity || 0), 0) || 0;
+  const completionRate = totalQty > 0 ? Math.round((totalOutput / totalQty) * 100) : 0;
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      period,
+      startDate,
+      orders: orders?.slice(0, 10),
+      summary: {
+        totalOrders: orders?.length || 0,
+        totalOutput,
+        completionRate,
+        byStatus
+      }
+    }
+  });
+}
+
+/**
+ * 质量统计详情
+ */
+async function getQualityStats(client: any, searchParams: URLSearchParams) {
+  const period = searchParams.get('period') || 'month';
+  const today = new Date();
+
+  let startDate: string;
+  switch (period) {
+    case 'week':
+      startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      break;
+    default:
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+  }
+
+  // IQC统计
+  const { data: iqc } = await client
+    .from('quality_iqc')
+    .select('result')
+    .gte('created_at', startDate);
+
+  // IPQC统计
+  const { data: ipqc } = await client
+    .from('quality_ipqc')
+    .select('result')
+    .gte('created_at', startDate);
+
+  // OQC统计
+  const { data: oqc } = await client
+    .from('quality_oqc')
+    .select('result')
+    .gte('created_at', startDate);
+
+  const calcRate = (data: any[]) => {
+    const total = data?.length || 0;
+    const passed = data?.filter((d: any) => d.result === 'passed').length || 0;
+    return { total, passed, rate: total > 0 ? Math.round((passed / total) * 100) : 0 };
+  };
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      iqc: calcRate(iqc),
+      ipqc: calcRate(ipqc),
+      oqc: calcRate(oqc),
+      period
+    }
+  });
+}
+
+/**
+ * 库存统计详情
+ */
+async function getInventoryStats(client: any) {
+  // 按类别统计
+  const { data: materials } = await client
+    .from('materials')
+    .select(`
+      id, code, name, category,
+      inventory (quantity)
+    `)
+    .eq('is_active', true);
+
+  const byCategory: Record<string, { count: number; value: number }> = {};
+
+  materials?.forEach((m: any) => {
+    const cat = m.category || '其他';
+    if (!byCategory[cat]) {
+      byCategory[cat] = { count: 0, value: 0 };
+    }
+    byCategory[cat].count++;
+    const qty = m.inventory?.reduce((sum: number, i: any) => sum + parseFloat(i.quantity || 0), 0) || 0;
+    byCategory[cat].value += qty;
+  });
+
+  // 库存预警
+  const { data: alerts } = await client
+    .from('materials')
+    .select(`
+      id, code, name, safety_stock,
+      inventory (quantity)
+    `)
+    .eq('is_active', true);
+
+  let lowStock = 0;
+  let outOfStock = 0;
+
+  alerts?.forEach((m: any) => {
+    const qty = m.inventory?.reduce((sum: number, i: any) => sum + parseFloat(i.quantity || 0), 0) || 0;
+    if (qty === 0) outOfStock++;
+    else if (m.safety_stock && qty < m.safety_stock) lowStock++;
+  });
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      totalMaterials: materials?.length || 0,
+      byCategory,
+      alerts: { lowStock, outOfStock }
+    }
+  });
+}
+
+/**
+ * 财务统计
+ */
+async function getFinancialStats(client: any, searchParams: URLSearchParams) {
+  const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
+  const month = parseInt(searchParams.get('month') || (new Date().getMonth() + 1).toString());
+
+  // 应收账款
+  const { data: receivables } = await client
+    .from('bills')
+    .select('total_amount, paid_amount')
+    .eq('type', 'receivable')
+    .neq('status', 'paid');
+
+  const totalReceivable = receivables?.reduce((sum: number, b: any) => 
+    sum + (parseFloat(b.total_amount) - parseFloat(b.paid_amount || 0)), 0) || 0;
+
+  // 应付账款
+  const { data: payables } = await client
+    .from('bills')
+    .select('total_amount, paid_amount')
+    .eq('type', 'payable')
+    .neq('status', 'paid');
+
+  const totalPayable = payables?.reduce((sum: number, b: any) => 
+    sum + (parseFloat(b.total_amount) - parseFloat(b.paid_amount || 0)), 0) || 0;
+
+  // 本月销售
+  const { data: shipments } = await client
+    .from('shipments')
+    .select('total_amount')
+    .gte('shipment_date', `${year}-${month.toString().padStart(2, '0')}-01`)
+    .lt('shipment_date', `${year}-${(month + 1).toString().padStart(2, '0')}-01`);
+
+  const monthlySales = shipments?.reduce((sum: number, s: any) => sum + parseFloat(s.total_amount || 0), 0) || 0;
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      receivable: totalReceivable,
+      payable: totalPayable,
+      monthlySales,
+      year,
+      month
+    }
+  });
+}
+
+/**
+ * 趋势数据
+ */
+async function getTrends(client: any, searchParams: URLSearchParams) {
+  const type = searchParams.get('type') || 'production';
+  const days = parseInt(searchParams.get('days') || '7');
+
+  const endDate = new Date();
+  const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+
+  const trends: any[] = [];
+
+  if (type === 'production') {
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      const { data } = await client
+        .from('process_tracking')
+        .select('quantity')
+        .gte('created_at', `${dateStr}T00:00:00Z`)
+        .lt('created_at', `${dateStr}T23:59:59Z`);
+
+      const output = data?.reduce((sum: number, t: any) => sum + (t.quantity || 0), 0) || 0;
+      trends.push({ date: dateStr, value: output });
+    }
+  } else if (type === 'quality') {
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      const { data } = await client
+        .from('quality_iqc')
+        .select('result')
+        .gte('created_at', `${dateStr}T00:00:00Z`)
+        .lt('created_at', `${dateStr}T23:59:59Z`);
+
+      const total = data?.length || 0;
+      const passed = data?.filter((i: any) => i.result === 'passed').length || 0;
+      trends.push({ date: dateStr, value: total > 0 ? Math.round((passed / total) * 100) : 100 });
+    }
+  }
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      type,
+      trends
+    }
+  });
+}
+
+/**
+ * KPI指标
+ */
+async function getKPIs(client: any) {
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+
+  // 1. 准时交货率
+  const { data: orders } = await client
+    .from('production_orders')
+    .select('id, plan_end_date, actual_end_date, status')
+    .gte('created_at', monthStart)
+    .eq('status', 'completed');
+
+  const onTime = orders?.filter((o: any) => 
+    o.actual_end_date && new Date(o.actual_end_date) <= new Date(o.plan_end_date)
+  ).length || 0;
+  const deliveryRate = (orders?.length || 0) > 0 ? Math.round((onTime / orders.length) * 100) : 0;
+
+  // 2. 产线效率
+  const { data: timings } = await client
+    .from('process_timing')
+    .select('takt_time, quantity_completed')
+    .gte('created_at', monthStart);
+
+  const avgTakt = timings && timings.length > 0
+    ? timings.reduce((sum: number, t: any) => sum + (t.takt_time || 0), 0) / timings.length
+    : 0;
+  const targetTakt = 60; // 假设目标节拍60秒
+  const efficiency = avgTakt > 0 ? Math.min(100, Math.round((targetTakt / avgTakt) * 100)) : 100;
+
+  // 3. 一次合格率
+  const { data: oqc } = await client
+    .from('quality_oqc')
+    .select('passed_qty, inspected_qty')
+    .gte('created_at', monthStart);
+
+  const totalInspected = oqc?.reduce((sum: number, o: any) => sum + (o.inspected_qty || 0), 0) || 0;
+  const totalPassed = oqc?.reduce((sum: number, o: any) => sum + (o.passed_qty || 0), 0) || 0;
+  const firstPassRate = totalInspected > 0 ? Math.round((totalPassed / totalInspected) * 100) : 100;
+
+  // 4. 设备利用率（模拟）
+  const utilizationRate = 85;
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      deliveryRate,
+      efficiency,
+      firstPassRate,
+      utilizationRate,
+      period: '本月'
+    }
+  });
 }
