@@ -493,7 +493,143 @@ async function initializeDatabase(client: any, force: boolean) {
     CREATE INDEX IF NOT EXISTS template_usage_logs_template_idx ON template_usage_logs(template_id);
   `;
 
-  // 8. 对账系统表
+  // 8. 工艺单核心表
+  const techPackTables = `
+    -- 工艺单主表
+    CREATE TABLE IF NOT EXISTS tech_packs (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      tech_pack_no VARCHAR(50) NOT NULL UNIQUE,
+      style_id VARCHAR(36),
+      customer_id VARCHAR(36),
+      version VARCHAR(20) DEFAULT 'V1',
+      parent_id VARCHAR(36),
+      status VARCHAR(20) DEFAULT 'draft',
+      designer VARCHAR(100),
+      reviewer VARCHAR(100),
+      description TEXT,
+      season VARCHAR(50),
+      year INTEGER,
+      category VARCHAR(100),
+      fabric_info JSONB,
+      lining_info JSONB,
+      accessories_info JSONB,
+      washing_instructions TEXT,
+      packing_instructions TEXT,
+      total_smv DECIMAL(10,2),
+      bom_cost DECIMAL(15,2),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE
+    );
+    
+    CREATE INDEX IF NOT EXISTS tech_packs_style_idx ON tech_packs(style_id);
+    CREATE INDEX IF NOT EXISTS tech_packs_customer_idx ON tech_packs(customer_id);
+    CREATE INDEX IF NOT EXISTS tech_packs_status_idx ON tech_packs(status);
+    
+    -- 工艺单BOM
+    CREATE TABLE IF NOT EXISTS tech_pack_bom (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      tech_pack_id VARCHAR(36) NOT NULL,
+      item_type VARCHAR(50),
+      material_id VARCHAR(36),
+      material_name VARCHAR(200),
+      color VARCHAR(100),
+      specification TEXT,
+      quantity DECIMAL(15,2),
+      unit VARCHAR(20),
+      unit_price DECIMAL(15,2),
+      consumption_per_piece DECIMAL(15,4),
+      wastage_rate DECIMAL(5,2),
+      supplier_id VARCHAR(36),
+      remarks TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS tech_pack_bom_tech_pack_idx ON tech_pack_bom(tech_pack_id);
+    CREATE INDEX IF NOT EXISTS tech_pack_bom_material_idx ON tech_pack_bom(material_id);
+    
+    -- 工艺单工序
+    CREATE TABLE IF NOT EXISTS tech_pack_processes (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      tech_pack_id VARCHAR(36) NOT NULL,
+      process_id VARCHAR(36),
+      sequence INTEGER,
+      standard_time DECIMAL(10,2),
+      machine_type VARCHAR(100),
+      skill_level VARCHAR(50),
+      quality_points TEXT,
+      remarks TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS tech_pack_processes_tech_pack_idx ON tech_pack_processes(tech_pack_id);
+    CREATE INDEX IF NOT EXISTS tech_pack_processes_process_idx ON tech_pack_processes(process_id);
+    
+    -- 工艺单尺寸表
+    CREATE TABLE IF NOT EXISTS tech_pack_size_chart (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      tech_pack_id VARCHAR(36) NOT NULL,
+      size_name VARCHAR(50),
+      measurement_name VARCHAR(100),
+      measurement_value DECIMAL(10,2),
+      tolerance DECIMAL(10,2),
+      grading DECIMAL(10,2),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS tech_pack_size_chart_tech_pack_idx ON tech_pack_size_chart(tech_pack_id);
+    
+    -- 工艺单图片
+    CREATE TABLE IF NOT EXISTS tech_pack_images (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      tech_pack_id VARCHAR(36) NOT NULL,
+      image_type VARCHAR(50),
+      image_url TEXT,
+      description TEXT,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS tech_pack_images_tech_pack_idx ON tech_pack_images(tech_pack_id);
+    
+    -- 工艺单纸样文件
+    CREATE TABLE IF NOT EXISTS tech_pack_patterns (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      tech_pack_id VARCHAR(36) NOT NULL,
+      file_name VARCHAR(200),
+      file_url TEXT,
+      file_type VARCHAR(50),
+      version VARCHAR(20),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS tech_pack_patterns_tech_pack_idx ON tech_pack_patterns(tech_pack_id);
+    
+    -- 工艺单版本历史
+    CREATE TABLE IF NOT EXISTS tech_pack_versions (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      tech_pack_id VARCHAR(36) NOT NULL,
+      version VARCHAR(20),
+      parent_id VARCHAR(36),
+      reason TEXT,
+      created_by VARCHAR(36),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS tech_pack_versions_tech_pack_idx ON tech_pack_versions(tech_pack_id);
+    
+    -- 工艺单变更记录
+    CREATE TABLE IF NOT EXISTS tech_pack_changes (
+      id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+      tech_pack_id VARCHAR(36) NOT NULL,
+      changed_by VARCHAR(36),
+      changes JSONB,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS tech_pack_changes_tech_pack_idx ON tech_pack_changes(tech_pack_id);
+  `;
+
+  // 9. 对账系统表
   const statementTables = `
     -- 对账单
     CREATE TABLE IF NOT EXISTS statements (
@@ -679,6 +815,7 @@ async function initializeDatabase(client: any, force: boolean) {
     { name: 'line_balance_tables', sql: lineBalanceTables },
     { name: 'order_split_tables', sql: orderSplitTables },
     { name: 'template_tables', sql: templateTables },
+    { name: 'tech_pack_tables', sql: techPackTables },
     { name: 'statement_tables', sql: statementTables },
     { name: 'customer_portal_tables', sql: customerPortalTables }
   ];
@@ -765,6 +902,8 @@ async function resetDatabase(client: any) {
     'production_lines', 'line_stations', 'process_timing', 'bottleneck_records',
     'parent_orders', 'split_orders',
     'templates', 'template_items', 'tech_pack_templates',
+    'tech_packs', 'tech_pack_bom', 'tech_pack_processes', 'tech_pack_size_chart',
+    'tech_pack_images', 'tech_pack_patterns', 'tech_pack_versions', 'tech_pack_changes',
     'bom_templates', 'bom_template_items', 'size_templates', 'size_template_measurements',
     'process_template_items', 'template_usage_logs',
     'statements', 'statement_items', 'statement_payments', 'statement_history', 'statement_reminders',

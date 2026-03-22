@@ -37,7 +37,8 @@ import {
   Database,
   ArrowLeft,
   LogIn,
-  Ticket
+  Ticket,
+  FileText
 } from 'lucide-react';
 
 const featureGroups = [
@@ -59,6 +60,7 @@ const featureGroups = [
     features: [
       { name: '生产订单', icon: Factory, href: '/production', color: 'bg-indigo-100 text-indigo-600' },
       { name: '生产准备', icon: ClipboardCheck, href: '/production-prep', color: 'bg-indigo-100 text-indigo-600' },
+      { name: '工艺单/BOM', icon: FileText, href: '/tech-pack', color: 'bg-indigo-100 text-indigo-600' },
       { name: '裁床管理', icon: Scissors, href: '/cutting', color: 'bg-indigo-100 text-indigo-600' },
       { name: '裁床分扎', icon: Layers, href: '/cutting-bundles', color: 'bg-indigo-100 text-indigo-600' },
       { name: '条码工票', icon: Ticket, href: '/work-tickets', color: 'bg-indigo-100 text-indigo-600' },
