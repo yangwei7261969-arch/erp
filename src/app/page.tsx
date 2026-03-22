@@ -54,20 +54,11 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState('month');
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
-  // 检查登录状态
+  // 检查管理员登录状态 - 主页仅供管理员使用
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      // 检查是否是供应商登录
-      const supplierInfo = localStorage.getItem('supplier_info');
-      const userType = localStorage.getItem('user_type');
-      
-      if (supplierInfo && userType === 'supplier') {
-        // 供应商已登录，跳转到供应商工作台
-        router.push('/supplier-workbench');
-      } else {
-        // 未登录，跳转到登录页
-        router.push('/login');
-      }
+      // 未登录管理员，跳转到管理员登录页
+      router.push('/login');
     }
   }, [authLoading, isAuthenticated, router]);
 
