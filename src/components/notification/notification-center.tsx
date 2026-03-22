@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -130,6 +131,7 @@ const LEVEL_CONFIG = {
 };
 
 export default function NotificationCenter() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -478,7 +480,15 @@ export default function NotificationCenter() {
           
           {/* 底部 */}
           <div className="p-2 border-t bg-gray-50">
-            <Button variant="outline" size="sm" className="w-full">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full"
+              onClick={() => {
+                setIsOpen(false);
+                router.push('/notification-management');
+              }}
+            >
               <Settings className="h-3.5 w-3.5 mr-2" />
               通知设置
             </Button>
@@ -539,7 +549,16 @@ export default function NotificationCenter() {
                 )}
                 {selectedNotification.relatedPage && (
                   <div>
-                    <Button variant="link" size="sm" className="h-auto p-0">
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="h-auto p-0"
+                      onClick={() => {
+                        setDetailDialogOpen(false);
+                        setIsOpen(false);
+                        router.push(selectedNotification.relatedPage!);
+                      }}
+                    >
                       查看相关页面
                       <ExternalLink className="h-3 w-3 ml-1" />
                     </Button>
@@ -571,9 +590,10 @@ export default function NotificationCenter() {
                       variant="outline"
                       onClick={() => {
                         if (selectedNotification.relatedPage) {
-                          window.location.href = selectedNotification.relatedPage;
+                          setDetailDialogOpen(false);
+                          setIsOpen(false);
+                          router.push(selectedNotification.relatedPage);
                         }
-                        setDetailDialogOpen(false);
                       }}
                     >
                       前往处理

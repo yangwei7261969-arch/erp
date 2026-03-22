@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,11 +25,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Bell,
   Plus,
   Search,
-  Filter,
   RefreshCw,
   Trash2,
   Edit,
@@ -43,7 +44,6 @@ import {
   Calendar,
   Info,
   CheckCircle,
-  XCircle,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -84,7 +84,7 @@ interface NotificationRule {
 }
 
 // 类型配置
-const TYPE_CONFIG = {
+const TYPE_CONFIG: Record<NotificationType, { label: string; icon: typeof Truck; color: string; bgColor: string }> = {
   shipping: { label: '发货提醒', icon: Truck, color: 'text-blue-500', bgColor: 'bg-blue-50' },
   overdue: { label: '超期提醒', icon: Clock, color: 'text-red-500', bgColor: 'bg-red-50' },
   inventory: { label: '库存不足', icon: Package, color: 'text-orange-500', bgColor: 'bg-orange-50' },
@@ -95,30 +95,44 @@ const TYPE_CONFIG = {
 };
 
 // 级别配置
-const LEVEL_CONFIG = {
+const LEVEL_CONFIG: Record<NotificationLevel, { label: string; className: string }> = {
   critical: { label: '紧急', className: 'bg-red-100 text-red-800' },
   warning: { label: '警告', className: 'bg-yellow-100 text-yellow-800' },
   info: { label: '提示', className: 'bg-blue-100 text-blue-800' },
 };
 
 // 状态配置
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<NotificationStatus, { label: string; className: string }> = {
   unread: { label: '未读', className: 'bg-red-100 text-red-800' },
   read: { label: '已读', className: 'bg-gray-100 text-gray-800' },
   handled: { label: '已处理', className: 'bg-green-100 text-green-800' },
 };
 
+// 接收人列表
+const RECIPIENTS_OPTIONS = [
+  '采购部', '生产主管', '质检', '仓库', '销售', '财务', '人事', '总经理'
+];
+
 export default function NotificationManagementPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notifications');
   
   // 通知列表
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   
+  // 搜索和筛选
+  const [searchText, setSearchText] = useState('');
+  const [filterType, setFilterType] = useState<NotificationType | 'all'>('all');
+  const [filterStatus, setFilterStatus] = useState<NotificationStatus | 'all'>('all');
+  const [filterLevel, setFilterLevel] = useState<NotificationLevel | 'all'>('all');
+  
   // 通知规则
   const [rules, setRules] = useState<NotificationRule[]>([]);
+  const [editingRule, setEditingRule] = useState<NotificationRule | null>(null);
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
   
   // 新建公告
@@ -140,6 +154,9 @@ export default function NotificationManagementPage() {
     autoRefresh: true,
     refreshInterval: 30,
   });
+  
+  // 保存设置
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
   // 统计
   const [stats, setStats] = useState({
@@ -152,6 +169,34 @@ export default function NotificationManagementPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // 筛选通知
+  useEffect(() => {
+    let filtered = [...notifications];
+    
+    if (searchText) {
+      const search = searchText.toLowerCase();
+      filtered = filtered.filter(n => 
+        n.title.toLowerCase().includes(search) ||
+        n.message.toLowerCase().includes(search) ||
+        (n.relatedOrder && n.relatedOrder.toLowerCase().includes(search))
+      );
+    }
+    
+    if (filterType !== 'all') {
+      filtered = filtered.filter(n => n.type === filterType);
+    }
+    
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(n => n.status === filterStatus);
+    }
+    
+    if (filterLevel !== 'all') {
+      filtered = filtered.filter(n => n.level === filterLevel);
+    }
+    
+    setFilteredNotifications(filtered);
+  }, [notifications, searchText, filterType, filterStatus, filterLevel]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -252,6 +297,7 @@ export default function NotificationManagementPage() {
         },
       ];
       setNotifications(mockNotifications);
+      setFilteredNotifications(mockNotifications);
 
       // 通知规则
       setRules([
@@ -315,20 +361,96 @@ export default function NotificationManagementPage() {
     setNotifications(prev => prev.map(n =>
       n.id === id ? { ...n, status: 'read' } : n
     ));
+    // 更新统计
+    setStats(prev => ({
+      ...prev,
+      unread: Math.max(0, prev.unread - 1),
+    }));
   };
 
   const handleDelete = (id: string) => {
+    const notification = notifications.find(n => n.id === id);
     setNotifications(prev => prev.filter(n => n.id !== id));
+    if (notification?.status === 'unread') {
+      setStats(prev => ({
+        ...prev,
+        unread: Math.max(0, prev.unread - 1),
+        total: prev.total - 1,
+      }));
+    } else {
+      setStats(prev => ({
+        ...prev,
+        total: prev.total - 1,
+      }));
+    }
   };
 
   const handleBatchDelete = (status: NotificationStatus) => {
+    const count = notifications.filter(n => n.status === status).length;
     setNotifications(prev => prev.filter(n => n.status !== status));
+    if (status === 'unread') {
+      setStats(prev => ({
+        ...prev,
+        unread: 0,
+        total: prev.total - count,
+      }));
+    } else {
+      setStats(prev => ({
+        ...prev,
+        total: prev.total - count,
+      }));
+    }
   };
 
   const handleToggleRule = (id: string) => {
     setRules(prev => prev.map(r =>
       r.id === id ? { ...r, enabled: !r.enabled } : r
     ));
+  };
+
+  const handleEditRule = (rule: NotificationRule) => {
+    setEditingRule({ ...rule });
+    setRuleDialogOpen(true);
+  };
+
+  const handleSaveRule = () => {
+    if (!editingRule) return;
+    
+    setRules(prev => prev.map(r =>
+      r.id === editingRule.id ? editingRule : r
+    ));
+    setRuleDialogOpen(false);
+    setEditingRule(null);
+  };
+
+  const handleCreateRule = () => {
+    const newRule: NotificationRule = {
+      id: Date.now().toString(),
+      name: '新规则',
+      type: 'inventory',
+      condition: '',
+      threshold: 0,
+      unit: '%',
+      enabled: true,
+      notifyMethods: ['system'],
+      recipients: [],
+    };
+    setEditingRule(newRule);
+    setRuleDialogOpen(true);
+  };
+
+  const handleDeleteRule = (id: string) => {
+    setRules(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleSaveSettings = () => {
+    // 这里可以保存到后端
+    setSettingsSaved(true);
+    setTimeout(() => setSettingsSaved(false), 2000);
+  };
+
+  const handleGoToPage = (page: string) => {
+    router.push(page);
   };
 
   const getTypeConfig = (type: NotificationType) => TYPE_CONFIG[type];
@@ -432,9 +554,14 @@ export default function NotificationManagementPage() {
             <div className="flex gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input placeholder="搜索通知..." className="pl-10 w-64" />
+                <Input 
+                  placeholder="搜索通知..." 
+                  className="pl-10 w-64"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
               </div>
-              <Select defaultValue="all">
+              <Select value={filterType} onValueChange={(v) => setFilterType(v as NotificationType | 'all')}>
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="类型" />
                 </SelectTrigger>
@@ -445,13 +572,24 @@ export default function NotificationManagementPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select defaultValue="all">
+              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as NotificationStatus | 'all')}>
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="状态" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">全部状态</SelectItem>
                   {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterLevel} onValueChange={(v) => setFilterLevel(v as NotificationLevel | 'all')}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="级别" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部级别</SelectItem>
+                  {Object.entries(LEVEL_CONFIG).map(([key, config]) => (
                     <SelectItem key={key} value={key}>{config.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -463,6 +601,9 @@ export default function NotificationManagementPage() {
               </Button>
               <Button variant="outline" size="sm" onClick={() => handleBatchDelete('handled')}>
                 清除已处理
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setSearchText(''); setFilterType('all'); setFilterStatus('all'); setFilterLevel('all'); }}>
+                重置筛选
               </Button>
             </div>
           </div>
@@ -483,65 +624,89 @@ export default function NotificationManagementPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {notifications.map((notification) => {
-                    const typeConfig = getTypeConfig(notification.type);
-                    const levelConfig = getLevelConfig(notification.level);
-                    const statusConfig = getStatusConfig(notification.status);
-                    const Icon = typeConfig.icon;
-                    
-                    return (
-                      <TableRow key={notification.id} className={notification.status === 'unread' ? 'bg-blue-50/50' : ''}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 ${typeConfig.color}`} />
-                            <span>{typeConfig.label}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={levelConfig.className}>{levelConfig.label}</Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">{notification.title}</TableCell>
-                        <TableCell className="max-w-xs truncate">{notification.message}</TableCell>
-                        <TableCell>{notification.relatedOrder || '-'}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatTime(notification.createdAt)}</TableCell>
-                        <TableCell>
-                          <Badge className={statusConfig.className}>{statusConfig.label}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedNotification(notification);
-                                setDetailDialogOpen(true);
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {notification.status === 'unread' && (
+                  {filteredNotifications.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        暂无匹配的通知
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredNotifications.map((notification) => {
+                      const typeConfig = getTypeConfig(notification.type);
+                      const levelConfig = getLevelConfig(notification.level);
+                      const statusConfig = getStatusConfig(notification.status);
+                      const Icon = typeConfig.icon;
+                      
+                      return (
+                        <TableRow key={notification.id} className={notification.status === 'unread' ? 'bg-blue-50/50' : ''}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Icon className={`h-4 w-4 ${typeConfig.color}`} />
+                              <span>{typeConfig.label}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={levelConfig.className}>{levelConfig.label}</Badge>
+                          </TableCell>
+                          <TableCell className="font-medium">{notification.title}</TableCell>
+                          <TableCell className="max-w-xs truncate">{notification.message}</TableCell>
+                          <TableCell>{notification.relatedOrder || '-'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{formatTime(notification.createdAt)}</TableCell>
+                          <TableCell>
+                            <Badge className={statusConfig.className}>{statusConfig.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleMarkAsRead(notification.id)}
+                                onClick={() => {
+                                  setSelectedNotification(notification);
+                                  setDetailDialogOpen(true);
+                                }}
+                                title="查看详情"
                               >
-                                <CheckCircle className="h-4 w-4" />
+                                <Eye className="h-4 w-4" />
                               </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(notification.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                              {notification.status === 'unread' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleMarkAsRead(notification.id)}
+                                  title="标记已读"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {notification.relatedPage && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleGoToPage(notification.relatedPage!)}
+                                  title="前往相关页面"
+                                >
+                                  <AlertCircle className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(notification.id)}
+                                title="删除"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
+              <div className="mt-4 text-sm text-muted-foreground">
+                显示 {filteredNotifications.length} / {notifications.length} 条通知
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -549,7 +714,7 @@ export default function NotificationManagementPage() {
         {/* 通知规则 */}
         <TabsContent value="rules" className="space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => setRuleDialogOpen(true)}>
+            <Button onClick={handleCreateRule}>
               <Plus className="h-4 w-4 mr-2" />
               新建规则
             </Button>
@@ -607,9 +772,24 @@ export default function NotificationManagementPage() {
                           />
                         </TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditRule(rule)}
+                              title="编辑"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteRule(rule.id)}
+                              title="删除"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -682,6 +862,12 @@ export default function NotificationManagementPage() {
                   />
                 </div>
               )}
+              
+              <div className="pt-4 border-t">
+                <Button onClick={handleSaveSettings}>
+                  {settingsSaved ? '已保存' : '保存设置'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -747,14 +933,24 @@ export default function NotificationManagementPage() {
                   </p>
                 </div>
               )}
+              
+              <div className="flex gap-2 pt-4 border-t">
+                {selectedNotification.relatedPage && (
+                  <Button 
+                    onClick={() => {
+                      setDetailDialogOpen(false);
+                      handleGoToPage(selectedNotification.relatedPage!);
+                    }}
+                  >
+                    前往处理
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+                  关闭
+                </Button>
+              </div>
             </div>
           )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
-              关闭
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -850,6 +1046,151 @@ export default function NotificationManagementPage() {
             <Button onClick={handleSendAnnouncement}>
               <Send className="h-4 w-4 mr-2" />
               发布
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 规则编辑对话框 */}
+      <Dialog open={ruleDialogOpen} onOpenChange={setRuleDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingRule?.id.includes('new') ? '新建规则' : '编辑规则'}</DialogTitle>
+          </DialogHeader>
+          
+          {editingRule && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>规则名称</Label>
+                <Input
+                  value={editingRule.name}
+                  onChange={(e) => setEditingRule({ ...editingRule, name: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>通知类型</Label>
+                <Select
+                  value={editingRule.type}
+                  onValueChange={(value: NotificationType) => 
+                    setEditingRule({ ...editingRule, type: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TYPE_CONFIG).map(([key, config]) => (
+                      <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-2">
+                  <Label>条件</Label>
+                  <Input
+                    value={editingRule.condition}
+                    onChange={(e) => setEditingRule({ ...editingRule, condition: e.target.value })}
+                    placeholder="如: 库存量 <"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>阈值</Label>
+                  <Input
+                    type="number"
+                    value={editingRule.threshold}
+                    onChange={(e) => setEditingRule({ ...editingRule, threshold: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>单位</Label>
+                  <Input
+                    value={editingRule.unit}
+                    onChange={(e) => setEditingRule({ ...editingRule, unit: e.target.value })}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>通知方式</Label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2">
+                    <Checkbox
+                      checked={editingRule.notifyMethods.includes('system')}
+                      onCheckedChange={(checked) => {
+                        const methods = checked
+                          ? [...editingRule.notifyMethods, 'system']
+                          : editingRule.notifyMethods.filter(m => m !== 'system');
+                        setEditingRule({ ...editingRule, notifyMethods: methods as any });
+                      }}
+                    />
+                    系统
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <Checkbox
+                      checked={editingRule.notifyMethods.includes('email')}
+                      onCheckedChange={(checked) => {
+                        const methods = checked
+                          ? [...editingRule.notifyMethods, 'email']
+                          : editingRule.notifyMethods.filter(m => m !== 'email');
+                        setEditingRule({ ...editingRule, notifyMethods: methods as any });
+                      }}
+                    />
+                    邮件
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <Checkbox
+                      checked={editingRule.notifyMethods.includes('sms')}
+                      onCheckedChange={(checked) => {
+                        const methods = checked
+                          ? [...editingRule.notifyMethods, 'sms']
+                          : editingRule.notifyMethods.filter(m => m !== 'sms');
+                        setEditingRule({ ...editingRule, notifyMethods: methods as any });
+                      }}
+                    />
+                    短信
+                  </label>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>接收人</Label>
+                <div className="flex flex-wrap gap-2">
+                  {RECIPIENTS_OPTIONS.map((recipient) => (
+                    <label key={recipient} className="flex items-center gap-2">
+                      <Checkbox
+                        checked={editingRule.recipients.includes(recipient)}
+                        onCheckedChange={(checked) => {
+                          const recipients = checked
+                            ? [...editingRule.recipients, recipient]
+                            : editingRule.recipients.filter(r => r !== recipient);
+                          setEditingRule({ ...editingRule, recipients });
+                        }}
+                      />
+                      {recipient}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label>启用规则</Label>
+                <Switch
+                  checked={editingRule.enabled}
+                  onCheckedChange={(checked) => setEditingRule({ ...editingRule, enabled: checked })}
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRuleDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSaveRule}>
+              保存
             </Button>
           </DialogFooter>
         </DialogContent>

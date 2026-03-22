@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { AlertTriangle, X, ChevronRight, Bell, Package, Truck, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +50,7 @@ interface PageAnnouncementProps {
 }
 
 export default function PageAnnouncement({ pageId, className }: PageAnnouncementProps) {
+  const router = useRouter();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -124,7 +126,7 @@ export default function PageAnnouncement({ pageId, className }: PageAnnouncement
 
   const handleAction = (announcement: Announcement) => {
     if (announcement.actionUrl) {
-      window.location.href = announcement.actionUrl;
+      router.push(announcement.actionUrl);
     }
   };
 
