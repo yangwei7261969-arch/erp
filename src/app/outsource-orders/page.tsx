@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getColorValue } from '@/lib/color-utils';
 import {
   Send,
   Plus,
@@ -309,8 +310,17 @@ export default function OutsourceOrdersPage() {
                     </TableCell>
                     <TableCell className="font-bold">{order.style_no}</TableCell>
                     <TableCell>{order.style_name}</TableCell>
-                    <TableCell>{order.color}/{order.size}</TableCell>
-                    <TableCell>{order.quantity}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-5 h-5 rounded-full border border-gray-200 shadow-sm"
+                          style={{ backgroundColor: getColorValue(order.color) }}
+                        />
+                        <span className="font-bold">{order.color}</span>
+                        {order.size && <span className="text-muted-foreground">/ {order.size}</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-bold text-blue-600">{order.quantity}</TableCell>
                     <TableCell>¥{order.total_amount?.toLocaleString()}</TableCell>
                     <TableCell>{order.plan_end_date}</TableCell>
                     <TableCell>
@@ -513,11 +523,18 @@ export default function OutsourceOrdersPage() {
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">颜色/尺码</div>
-                  <div>{selectedOrder.color}/{selectedOrder.size}</div>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-5 h-5 rounded-full border border-gray-200 shadow-sm"
+                      style={{ backgroundColor: getColorValue(selectedOrder.color) }}
+                    />
+                    <span className="font-bold">{selectedOrder.color}</span>
+                    {selectedOrder.size && <span className="text-muted-foreground">/ {selectedOrder.size}</span>}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">数量</div>
-                  <div>{selectedOrder.quantity}</div>
+                  <div className="font-bold text-blue-600 text-lg">{selectedOrder.quantity}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">金额</div>

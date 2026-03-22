@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { getColorValue } from '@/lib/color-utils';
 import {
   Calendar,
   Truck,
@@ -411,11 +412,19 @@ export default function ShippingCalendarPage() {
                               )}
                             </div>
                             <div className="text-sm text-gray-500 mt-1">
-                              {order.style_name} | {order.color}/{order.size}
+                              {order.style_name} | 
+                              <span className="inline-flex items-center gap-1 ml-1">
+                                <div 
+                                  className="w-4 h-4 rounded-full border border-gray-200"
+                                  style={{ backgroundColor: getColorValue(order.color) }}
+                                />
+                                <span className="font-bold">{order.color}</span>
+                              </span>
+                              {order.size && <span className="ml-1">/ {order.size}</span>}
                             </div>
                             <div className="flex items-center gap-4 mt-1 text-sm">
-                              <span>数量: {order.quantity}</span>
-                              <span>完成: {order.completed_quantity || 0}</span>
+                              <span className="font-bold text-blue-600">数量: {order.quantity}</span>
+                              <span className="text-green-600 font-medium">完成: {order.completed_quantity || 0}</span>
                               {order.customer && (
                                 <span className="text-gray-500">
                                   客户: {order.customer.name}
@@ -535,10 +544,17 @@ export default function ShippingCalendarPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>订单号: <span className="font-mono">{selectedOrder.order_no}</span></div>
                   <div>款号: <span className="font-bold">{selectedOrder.style_no}</span></div>
-                  <div>颜色: {selectedOrder.color}</div>
-                  <div>尺码: {selectedOrder.size}</div>
-                  <div>订单数量: {selectedOrder.quantity}</div>
-                  <div>已完成: {selectedOrder.completed_quantity || 0}</div>
+                  <div className="flex items-center gap-1">
+                    颜色: 
+                    <div 
+                      className="w-4 h-4 rounded-full border border-gray-200"
+                      style={{ backgroundColor: getColorValue(selectedOrder.color) }}
+                    />
+                    <span className="font-bold">{selectedOrder.color}</span>
+                  </div>
+                  <div>尺码: <span className="font-bold">{selectedOrder.size}</span></div>
+                  <div>订单数量: <span className="font-bold text-blue-600">{selectedOrder.quantity}</span></div>
+                  <div>已完成: <span className="font-bold text-green-600">{selectedOrder.completed_quantity || 0}</span></div>
                 </div>
                 {selectedOrder.customer && (
                   <div className="mt-2 pt-2 border-t">

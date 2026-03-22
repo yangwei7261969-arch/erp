@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import PrintTicketsDialog from '@/components/print-tickets-dialog';
 import { ExportButton } from '@/components/export-button';
+import { getColorValue } from '@/lib/color-utils';
 import { 
   QrCode, 
   Printer, 
@@ -687,9 +688,17 @@ export default function CuttingBundlesPage() {
                     </TableCell>
                     <TableCell className="font-mono font-bold">{bundle.bundle_no}</TableCell>
                     <TableCell>{bundle.cutting_orders?.style_no || '-'}</TableCell>
-                    <TableCell>{bundle.color}</TableCell>
-                    <TableCell>{bundle.size}</TableCell>
-                    <TableCell>{bundle.quantity}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <div 
+                          className="w-4 h-4 rounded-full border border-gray-200"
+                          style={{ backgroundColor: getColorValue(bundle.color) }}
+                        />
+                        <span className="font-medium">{bundle.color}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-bold">{bundle.size}</TableCell>
+                    <TableCell className="font-bold text-blue-600">{bundle.quantity}</TableCell>
                     <TableCell>{getStatusBadge(bundle.status)}</TableCell>
                     <TableCell>{new Date(bundle.created_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
@@ -799,9 +808,15 @@ export default function CuttingBundlesPage() {
                   <SelectContent>
                     {cuttingOrders.map(order => (
                       <SelectItem key={order.id} value={order.id}>
-                        {order.order_no} - {order.style_no} ({order.color})
-                        {order.bed_number && ` - 第${order.bed_number}床`}
-                        - {order.quantity}件
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-4 h-4 rounded-full border border-gray-200 flex-shrink-0"
+                            style={{ backgroundColor: getColorValue(order.color) }}
+                          />
+                          <span>{order.order_no} - {order.style_no} ({order.color})</span>
+                          {order.bed_number && <span className="text-muted-foreground">- 第{order.bed_number}床</span>}
+                          - <span className="font-bold">{order.quantity}件</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -902,7 +917,13 @@ export default function CuttingBundlesPage() {
                         </div>
                         <div>
                           <span className="text-gray-500">颜色：</span>
-                          <span className="font-medium">{selectedCuttingOrder.color}</span>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-5 h-5 rounded-full border border-gray-200 shadow-sm"
+                              style={{ backgroundColor: getColorValue(selectedCuttingOrder.color) }}
+                            />
+                            <span className="font-bold text-base">{selectedCuttingOrder.color}</span>
+                          </div>
                         </div>
                         <div>
                           <span className="text-gray-500">总数量：</span>
@@ -932,7 +953,15 @@ export default function CuttingBundlesPage() {
                       {bundleConfig.map((config, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{config.size}</TableCell>
-                          <TableCell>{config.color}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <div 
+                                className="w-4 h-4 rounded-full border border-gray-200"
+                                style={{ backgroundColor: getColorValue(config.color) }}
+                              />
+                              <span className="font-medium">{config.color}</span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">{config.orderQty}</TableCell>
                           <TableCell className="text-right">
                             <Input

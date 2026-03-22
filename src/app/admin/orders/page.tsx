@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getColorValue } from '@/lib/color-utils';
 import {
   ArrowLeft,
   Package,
@@ -318,9 +319,18 @@ export default function AdminOrdersPage() {
                         <TableCell className="font-mono">{order.order_no}</TableCell>
                         <TableCell className="font-bold">{order.style_no}</TableCell>
                         <TableCell>{order.style_name}</TableCell>
-                        <TableCell>{order.color}/{order.size}</TableCell>
-                        <TableCell>{order.quantity}</TableCell>
-                        <TableCell>{order.completed_quantity || 0}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-5 h-5 rounded-full border border-gray-200 shadow-sm"
+                              style={{ backgroundColor: getColorValue(order.color) }}
+                            />
+                            <span className="font-bold">{order.color}</span>
+                            {order.size && <span className="text-muted-foreground">/ {order.size}</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-bold text-blue-600">{order.quantity}</TableCell>
+                        <TableCell className="font-bold text-green-600">{order.completed_quantity || 0}</TableCell>
                         <TableCell>{order.plan_end_date}</TableCell>
                         <TableCell>
                           <Badge className={orderStatusMap[order.status]?.color}>

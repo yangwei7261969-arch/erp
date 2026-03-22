@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { getColorValue } from '@/lib/color-utils';
 import {
   Building2,
   Package,
@@ -401,13 +402,19 @@ export default function SupplierPortalPage() {
                         <TableCell className="font-mono">{order.outsource_no}</TableCell>
                         <TableCell className="font-medium">{order.style_no}</TableCell>
                         <TableCell>
-                          <div className="text-sm">
-                            <div>{order.color}</div>
-                            <div className="text-gray-500">{order.size}</div>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-5 h-5 rounded-full border border-gray-200 shadow-sm"
+                              style={{ backgroundColor: getColorValue(order.color) }}
+                            />
+                            <div>
+                              <div className="font-bold">{order.color}</div>
+                              <div className="text-gray-500 text-xs">{order.size}</div>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>{order.process_name}</TableCell>
-                        <TableCell>{order.quantity}件</TableCell>
+                        <TableCell className="font-bold text-blue-600">{order.quantity}件</TableCell>
                         <TableCell>¥{order.unit_price}</TableCell>
                         <TableCell className="font-medium">¥{order.total_price}</TableCell>
                         <TableCell>{getStatusBadge(order.status)}</TableCell>
