@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     // 1. 生产订单统计
     const { data: orders } = await client
       .from('production_orders')
-      .select('id, status, total_quantity, completed_quantity, plan_end_date, created_at');
+      .select('id, status, quantity, completed_quantity, plan_end_date, created_at');
 
     const orderStats = {
       total: orders?.length || 0,
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     // 2. 生产进度统计
     const progressStats = {
-      total_quantity: orders?.reduce((sum, o) => sum + (o.total_quantity || 0), 0) || 0,
+      total_quantity: orders?.reduce((sum, o) => sum + (o.quantity || 0), 0) || 0,
       completed_quantity: orders?.reduce((sum, o) => sum + (o.completed_quantity || 0), 0) || 0,
     };
 
@@ -52,14 +52,14 @@ export async function GET(request: NextRequest) {
     };
 
     // 4. 库存统计
-    const { data: materials } = await client
-      .from('materials')
+    const { data: inventory } = await client
+      .from('inventory')
       .select('id, quantity, safety_stock, unit_price');
 
     const inventoryStats = {
-      total_types: materials?.length || 0,
-      low_stock: materials?.filter(m => m.quantity <= (m.safety_stock || 0)).length || 0,
-      total_value: materials?.reduce((sum, m) => sum + (m.quantity || 0) * (m.unit_price || 0), 0) || 0,
+      total_types: inventory?.length || 0,
+      low_stock: inventory?.filter(m => m.quantity <= (m.safety_stock || 0)).length || 0,
+      total_value: inventory?.reduce((sum, m) => sum + (m.quantity || 0) * (m.unit_price || 0), 0) || 0,
     };
 
     // 5. 财务统计
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
     ).slice(0, 5) || [];
 
     // 10. 低库存预警
-    const lowStockMaterials = materials?.filter(m => 
+    const lowStockMaterials = inventory?.filter(m => 
       m.quantity <= (m.safety_stock || 10)
     ).slice(0, 5) || [];
 
