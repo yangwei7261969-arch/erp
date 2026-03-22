@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -26,6 +26,12 @@ import {
   Copy,
   ThumbsUp,
   ThumbsDown,
+  AlertTriangle,
+  Package,
+  DollarSign,
+  TrendingUp,
+  Clock,
+  CheckCircle,
 } from 'lucide-react';
 
 interface Message {
@@ -33,21 +39,21 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  actions?: string[];
+  isStreaming?: boolean;
 }
 
 const quickActions = [
-  { icon: Printer, label: '打印订单', prompt: '帮我打印最近的订单' },
-  { icon: FileDown, label: '导出报表', prompt: '导出本月的财务报表' },
-  { icon: BarChart3, label: '生产预测', prompt: '预测下个月的生产计划' },
-  { icon: Sparkles, label: '数据分析', prompt: '分析本月的经营数据' },
+  { icon: BarChart3, label: '生产分析', prompt: '分析当前生产订单的完成情况和效率' },
+  { icon: Package, label: '库存预警', prompt: '检查是否有物料库存不足需要补货' },
+  { icon: DollarSign, label: '财务概览', prompt: '分析本月的财务收支情况' },
+  { icon: AlertTriangle, label: '异常检测', prompt: '检查是否有延迟订单或其他异常情况' },
 ];
 
 const suggestedQuestions = [
-  '本月的订单完成情况如何？',
-  '哪些物料需要补货？',
-  '本月财务收支情况？',
-  '最近有哪些逾期订单？',
+  '当前生产进度如何？有哪些需要关注的问题？',
+  '分析订单完成效率，给出改进建议',
+  '本月的经营状况如何？',
+  '有哪些订单即将到期需要加快进度？',
 ];
 
 export default function AIAssistantPage() {
@@ -55,14 +61,14 @@ export default function AIAssistantPage() {
     {
       id: '1',
       role: 'assistant',
-      content: '您好！我是您的智能助手，可以帮助您处理生产管理、库存查询、财务报表等工作。请问有什么可以帮您的？',
+      content: '您好！我是您的智能生产管理助手。\n\n我可以帮您：\n• 📊 分析生产订单状态和进度\n• 📦 检查库存预警和补货建议\n• 💰 分析财务收支情况\n• ⚠️ 检测异常订单和风险\n• 📈 提供生产优化建议\n\n请问有什么可以帮您的？',
       timestamp: new Date(),
-      actions: ['打印订单', '导出报表', '生产预测'],
     },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -84,34 +90,138 @@ export default function AIAssistantPage() {
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: generateAIResponse(input),
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
+    // 创建AI回复占位
+    const aiMessageId = (Date.now() + 1).toString();
+    const aiMessage: Message = {
+      id: aiMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      isStreaming: true,
+    };
+    setMessages((prev) => [...prev, aiMessage]);
+
+    try {
+      // 准备消息历史
+      const chatMessages = messages
+        .filter(m => m.role !== 'assistant' || m.content) // 过滤空消息
+        .map(m => ({ role: m.role, content: m.content }));
+      chatMessages.push({ role: 'user', content: input });
+
+      // 创建 AbortController
+      abortControllerRef.current = new AbortController();
+
+      const response = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: chatMessages, stream: true }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error('请求失败');
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法读取响应');
+      }
+
+      const decoder = new TextDecoder();
+      let fullContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              break;
+            }
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                fullContent += parsed.content;
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === aiMessageId
+                      ? { ...m, content: fullContent }
+                      : m
+                  )
+                );
+              }
+              if (parsed.error) {
+                throw new Error(parsed.error);
+              }
+            } catch {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+
+      // 完成流式输出
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === aiMessageId ? { ...m, isStreaming: false } : m
+        )
+      );
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        // 用户取消
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMessageId ? { ...m, isStreaming: false } : m
+          )
+        );
+      } else {
+        console.error('AI chat error:', error);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMessageId
+              ? {
+                  ...m,
+                  content: '抱歉，处理您的请求时出现错误。请稍后重试。',
+                  isStreaming: false,
+                }
+              : m
+          )
+        );
+      }
+    } finally {
       setIsLoading(false);
-    }, 1500);
+      abortControllerRef.current = null;
+    }
   };
 
-  const generateAIResponse = (query: string): string => {
-    if (query.includes('订单')) {
-      return '📊 **订单概况**\n\n目前共有 **156** 个订单：\n- 进行中：12 个\n- 待开始：23 个\n- 已完成：121 个\n\n本月订单完成率为 **89.3%**，较上月提升 5.2%。需要我为您生成详细的订单报告吗？';
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-    if (query.includes('物料') || query.includes('库存')) {
-      return '📦 **库存预警**\n\n以下物料库存不足，建议及时补货：\n\n1. **蓝色棉布** - 当前: 50米, 安全库存: 100米\n2. **黑色涤纶布** - 当前: 80米, 安全库存: 100米\n3. **红色雪纺** - 当前: 30米, 安全库存: 50米\n\n是否需要我生成采购建议？';
-    }
-    if (query.includes('财务') || query.includes('收支')) {
-      return '💰 **本月财务概览**\n\n- 总收入：**¥2,891,000**\n- 总支出：**¥1,598,800**\n- 净利润：**¥1,292,200**\n\n利润率较上月提升 3.5%，主要得益于生产效率提高和成本控制优化。';
-    }
-    return '我已经收到您的请求。正在为您查询相关数据，请稍候...';
   };
 
   const handleQuickAction = (prompt: string) => {
     setInput(prompt);
+  };
+
+  const handleClearChat = () => {
+    setMessages([
+      {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: '对话已清空。请问有什么可以帮您的？',
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content);
   };
 
   return (
@@ -122,7 +232,7 @@ export default function AIAssistantPage() {
           <Sparkles className="h-8 w-8 text-purple-500" />
           AI 智能助手
         </h1>
-        <p className="text-muted-foreground">智能对话助手，帮助您快速处理业务</p>
+        <p className="text-muted-foreground">基于真实业务数据的智能分析助手</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-4 flex-1 overflow-hidden">
@@ -144,9 +254,12 @@ export default function AIAssistantPage() {
                   <CardDescription>在线 · 随时为您服务</CardDescription>
                 </div>
               </div>
-              <Button variant="ghost" size="icon">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={handleClearChat}>
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  清空对话
+                </Button>
+              </div>
             </div>
           </CardHeader>
 
@@ -176,7 +289,7 @@ export default function AIAssistantPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div
-                      className={`max-w-[70%] rounded-lg p-4 ${
+                      className={`max-w-[80%] rounded-lg p-4 ${
                         message.role === 'user'
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted'
@@ -184,10 +297,18 @@ export default function AIAssistantPage() {
                     >
                       <div className="whitespace-pre-wrap text-sm">
                         {message.content}
+                        {message.isStreaming && (
+                          <span className="inline-block w-2 h-4 ml-1 bg-purple-500 animate-pulse" />
+                        )}
                       </div>
-                      {message.role === 'assistant' && (
+                      {message.role === 'assistant' && !message.isStreaming && message.content && (
                         <div className="mt-3 flex items-center gap-2">
-                          <Button variant="ghost" size="sm" className="h-7 px-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 px-2"
+                            onClick={() => handleCopy(message.content)}
+                          >
                             <Copy className="h-3 w-3 mr-1" />
                             复制
                           </Button>
@@ -202,7 +323,7 @@ export default function AIAssistantPage() {
                     </div>
                   </div>
                 ))}
-                {isLoading && (
+                {isLoading && messages[messages.length - 1]?.role === 'user' && (
                   <div className="flex gap-3">
                     <Avatar className="flex-shrink-0">
                       <AvatarFallback className="bg-purple-500 text-white">
@@ -225,15 +346,22 @@ export default function AIAssistantPage() {
           <div className="border-t p-4">
             <div className="flex gap-2">
               <Input
-                placeholder="输入您的问题或指令..."
+                placeholder="输入您的问题，例如：分析当前生产进度..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 className="flex-1"
+                disabled={isLoading}
               />
-              <Button onClick={handleSend} disabled={isLoading}>
-                <Send className="h-4 w-4" />
-              </Button>
+              {isLoading ? (
+                <Button variant="destructive" onClick={handleStop}>
+                  停止
+                </Button>
+              ) : (
+                <Button onClick={handleSend} disabled={!input.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -243,7 +371,7 @@ export default function AIAssistantPage() {
           {/* Quick Actions */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">快捷操作</CardTitle>
+              <CardTitle className="text-sm">快捷分析</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-2">
@@ -253,6 +381,7 @@ export default function AIAssistantPage() {
                     variant="outline"
                     className="h-auto flex-col gap-1 py-3"
                     onClick={() => handleQuickAction(action.prompt)}
+                    disabled={isLoading}
                   >
                     <action.icon className="h-4 w-4" />
                     <span className="text-xs">{action.label}</span>
@@ -275,33 +404,46 @@ export default function AIAssistantPage() {
                     variant="ghost"
                     className="w-full justify-start text-left h-auto py-2"
                     onClick={() => handleQuickAction(question)}
+                    disabled={isLoading}
                   >
                     <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span className="text-xs">{question}</span>
+                    <span className="text-xs line-clamp-2">{question}</span>
                   </Button>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          {/* Usage Stats */}
+          {/* AI Capabilities */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">使用统计</CardTitle>
+              <CardTitle className="text-sm">AI 能力</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">今日对话</span>
-                  <span className="font-medium">23 次</span>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>实时业务数据查询</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">本月对话</span>
-                  <span className="font-medium">456 次</span>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>智能生产分析</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Token 消耗</span>
-                  <span className="font-medium">128K</span>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>库存预警检测</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>财务数据分析</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>异常订单检测</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>优化建议生成</span>
                 </div>
               </div>
             </CardContent>
