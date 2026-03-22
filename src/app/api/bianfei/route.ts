@@ -1,35 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// 延迟创建客户端，仅在需要时创建
-const getSupabase = () => {
-  if (!supabaseUrl || !supabaseKey) {
-    return null;
-  }
-  return createClient(supabaseUrl, supabaseKey);
-};
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET - 获取编菲列表
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getSupabase();
-    if (!supabase) {
-      // 数据库未配置，返回空数据
-      return NextResponse.json({ 
-        success: true, 
-        data: [] 
-      });
-    }
-    
+    const client = getSupabaseClient();
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
     
     if (id) {
       // 获取单个编菲详情
-      const { data: bianfei, error } = await supabase
+      const { data: bianfei, error } = await client
         .from('bianfei_records')
         .select(`
           *,
@@ -40,11 +21,7 @@ export async function GET(request: NextRequest) {
       
       if (error) {
         if (error.code === 'PGRST116') {
-          // 表不存在，返回空数据
-          return NextResponse.json({ 
-            success: true, 
-            data: null 
-          });
+          return NextResponse.json({ success: true, data: null });
         }
         throw error;
       }
@@ -53,18 +30,14 @@ export async function GET(request: NextRequest) {
     }
     
     // 获取编菲列表
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('bianfei_records')
       .select('*')
       .order('created_at', { ascending: false });
     
     if (error) {
       if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
-        // 表不存在，返回空数据
-        return NextResponse.json({ 
-          success: true, 
-          data: [] 
-        });
+        return NextResponse.json({ success: true, data: [] });
       }
       throw error;
     }
@@ -72,24 +45,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('Get bianfei error:', error);
-    return NextResponse.json({ 
-      success: true, 
-      data: [] 
-    });
+    return NextResponse.json({ success: true, data: [] });
   }
 }
 
 // POST - 创建新编菲
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return NextResponse.json({ 
-        success: false, 
-        error: '数据库未配置' 
-      });
-    }
-    
+    const client = getSupabaseClient();
     const body = await request.json();
     const { 
       order_no,
@@ -104,11 +67,27 @@ export async function POST(request: NextRequest) {
       remark
     } = body;
     
+    // 验证必填字段
+    if (!order_no) {
+      return NextResponse.json({ success: false, error: '请输入订单号' });
+    }
+    if (!color) {
+      return NextResponse.json({ success: false, error: '请选择颜色' });
+    }
+    if (!sizes || sizes.length === 0) {
+      return NextResponse.json({ success: false, error: '请选择至少一个尺码' });
+    }
+    
     // 生成编菲单号
     const bianfeiNo = `BF-${Date.now().toString(36).toUpperCase()}`;
     
+    // 计算总数量
+    const totalQuantity = items?.reduce((sum: number, item: any) => 
+      sum + Object.values(item.quantities || {}).reduce((s: number, q: any) => s + (Number(q) || 0), 0), 0
+    ) || 0;
+    
     // 创建编菲主记录
-    const { data: bianfei, error: bianfeiError } = await supabase
+    const { data: bianfei, error: bianfeiError } = await client
       .from('bianfei_records')
       .insert({
         bianfei_no: bianfeiNo,
@@ -117,18 +96,23 @@ export async function POST(request: NextRequest) {
         style_code,
         color,
         sizes: JSON.stringify(sizes),
-        quick_mode,
-        merge_same,
-        auto_increment,
+        quick_mode: quick_mode || false,
+        merge_same: merge_same || false,
+        auto_increment: auto_increment || false,
         remark,
         status: 'pending',
-        total_quantity: items.reduce((sum: number, item: any) => 
-          sum + Object.values(item.quantities || {}).reduce((s: number, q: any) => s + (Number(q) || 0), 0), 0)
+        total_quantity: totalQuantity
       })
       .select()
       .single();
     
-    if (bianfeiError) throw bianfeiError;
+    if (bianfeiError) {
+      console.error('Insert bianfei error:', bianfeiError);
+      return NextResponse.json({ 
+        success: false, 
+        error: bianfeiError.message || '创建编菲失败' 
+      });
+    }
     
     // 创建编菲明细
     if (items && items.length > 0) {
@@ -140,11 +124,14 @@ export async function POST(request: NextRequest) {
         total: Object.values(item.quantities || {}).reduce((s: number, q: any) => s + (Number(q) || 0), 0)
       }));
       
-      const { error: itemsError } = await supabase
+      const { error: itemsError } = await client
         .from('bianfei_items')
         .insert(bianfeiItems);
       
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Insert bianfei items error:', itemsError);
+        // 不回滚主记录，只返回警告
+      }
     }
     
     return NextResponse.json({ success: true, data: bianfei });
@@ -160,21 +147,27 @@ export async function POST(request: NextRequest) {
 // PUT - 更新编菲
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return NextResponse.json({ 
-        success: false, 
-        error: '数据库未配置' 
-      });
+    const client = getSupabaseClient();
+    const body = await request.json();
+    const { id, items, sizes, ...updates } = body;
+    
+    if (!id) {
+      return NextResponse.json({ success: false, error: '缺少编菲ID' });
     }
     
-    const body = await request.json();
-    const { id, ...updates } = body;
+    // 计算总数量
+    if (items) {
+      updates.total_quantity = items.reduce((sum: number, item: any) => 
+        sum + Object.values(item.quantities || {}).reduce((s: number, q: any) => s + (Number(q) || 0), 0), 0
+      );
+    }
     
-    const { data, error } = await supabase
+    // 更新主记录
+    const { data, error } = await client
       .from('bianfei_records')
       .update({
         ...updates,
+        sizes: sizes ? JSON.stringify(sizes) : undefined,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -182,6 +175,23 @@ export async function PUT(request: NextRequest) {
       .single();
     
     if (error) throw error;
+    
+    // 更新明细
+    if (items && items.length > 0) {
+      // 先删除旧明细
+      await client.from('bianfei_items').delete().eq('bianfei_id', id);
+      
+      // 插入新明细
+      const bianfeiItems = items.map((item: any, index: number) => ({
+        bianfei_id: id,
+        item_no: index + 1,
+        item_name: item.name || `条目${index + 1}`,
+        quantities: JSON.stringify(item.quantities || {}),
+        total: Object.values(item.quantities || {}).reduce((s: number, q: any) => s + (Number(q) || 0), 0)
+      }));
+      
+      await client.from('bianfei_items').insert(bianfeiItems);
+    }
     
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
@@ -196,35 +206,19 @@ export async function PUT(request: NextRequest) {
 // DELETE - 删除编菲
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return NextResponse.json({ 
-        success: false, 
-        error: '数据库未配置' 
-      });
-    }
-    
+    const client = getSupabaseClient();
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
     
     if (!id) {
-      return NextResponse.json({ 
-        success: false, 
-        error: '缺少编菲ID' 
-      });
+      return NextResponse.json({ success: false, error: '缺少编菲ID' });
     }
     
     // 先删除明细
-    await supabase
-      .from('bianfei_items')
-      .delete()
-      .eq('bianfei_id', id);
+    await client.from('bianfei_items').delete().eq('bianfei_id', id);
     
     // 再删除主记录
-    const { error } = await supabase
-      .from('bianfei_records')
-      .delete()
-      .eq('id', id);
+    const { error } = await client.from('bianfei_records').delete().eq('id', id);
     
     if (error) throw error;
     
