@@ -38,6 +38,7 @@ import {
   LogIn,
   Calendar,
   Warehouse,
+  Grid3X3,
   Users2,
   LucideIcon,
   Activity,
@@ -73,6 +74,12 @@ const menuGroups: MenuGroup[] = [
     icon: LayoutDashboard,
     defaultOpen: true,
     items: [
+      {
+        title: '全部功能',
+        icon: Grid3X3,
+        href: '/all-features',
+        roles: ['all'],
+      },
       {
         title: '数据大屏',
         icon: LayoutDashboard,

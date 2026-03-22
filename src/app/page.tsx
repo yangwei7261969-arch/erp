@@ -415,6 +415,29 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
+      {/* 全部功能入口 */}
+      <Card className="bg-gradient-to-r from-indigo-50 to-cyan-50 dark:from-indigo-950 dark:to-cyan-950 border-indigo-200 dark:border-indigo-800">
+        <CardContent className="pt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900 rounded-full flex items-center justify-center">
+                <Activity className="h-6 w-6 text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">全部功能</h3>
+                <p className="text-sm text-muted-foreground">50+ 功能模块，涵盖生产、库存、财务、人事等全流程管理</p>
+              </div>
+            </div>
+            <Link href="/all-features">
+              <Button variant="outline">
+                查看全部
+                <Activity className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 快捷操作 */}
       <Card>
         <CardHeader className="pb-2">
