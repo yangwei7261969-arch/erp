@@ -6,45 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   ArrowLeft,
-  Plus,
   Save,
-  Trash2,
-  X,
-  AlertCircle,
+  Plus,
   Loader2,
   FileText,
 } from 'lucide-react';
-
-// 常用颜色选项
-const colorOptions = [
-  { value: '白色', label: '白色' },
-  { value: '黑色', label: '黑色' },
-  { value: '红色', label: '红色' },
-  { value: '蓝色', label: '蓝色' },
-  { value: '灰色', label: '灰色' },
-  { value: '绿色', label: '绿色' },
-  { value: '黄色', label: '黄色' },
-  { value: '粉色', label: '粉色' },
-  { value: '紫色', label: '紫色' },
-  { value: '卡其色', label: '卡其色' },
-  { value: '藏青色', label: '藏青色' },
-  { value: '军绿色', label: '军绿色' },
-];
-
-// 常用尺码选项
-const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '2XL', '3XL', '4XL', '5XL', '28', '29', '30', '31', '32', '33', '34', '36', '38', '40', '42', '44', '46', '48', '50'];
+import { ColorSelector } from '@/components/common/ColorSelector';
+import { SizeSelector } from '@/components/common/SizeSelector';
+import { SizeQuantityTable } from '@/components/common/SizeQuantityTable';
 
 interface BianfeiItem {
   id: string;
@@ -116,84 +89,11 @@ export default function NewBianfeiPage() {
     }
   };
 
-  // 尺码选择
-  const handleSizeToggle = (size: string) => {
-    setSelectedSizes(prev => 
-      prev.includes(size) 
-        ? prev.filter(s => s !== size)
-        : [...prev, size]
+  // 计算总数量
+  const getTotalQuantity = () => {
+    return items.reduce((sum, item) => 
+      sum + Object.values(item.quantities).reduce((s, q) => s + (q || 0), 0), 0
     );
-  };
-
-  const handleSelectAllSizes = () => {
-    setSelectedSizes(sizeOptions);
-  };
-
-  const handleClearSizes = () => {
-    setSelectedSizes([]);
-  };
-
-  // 条目管理
-  const addItem = () => {
-    setItems(prev => [
-      ...prev,
-      { id: Date.now().toString(), name: `条目${prev.length + 1}`, quantities: {} }
-    ]);
-  };
-
-  const removeItem = (id: string) => {
-    if (items.length > 1) {
-      setItems(prev => prev.filter(item => item.id !== id));
-    }
-  };
-
-  const updateItemName = (id: string, name: string) => {
-    setItems(prev => prev.map(item => 
-      item.id === id ? { ...item, name } : item
-    ));
-  };
-
-  const updateQuantity = (itemId: string, size: string, value: string) => {
-    const qty = parseInt(value) || 0;
-    setItems(prev => prev.map(item => {
-      if (item.id === itemId) {
-        return {
-          ...item,
-          quantities: { ...item.quantities, [size]: qty }
-        };
-      }
-      return item;
-    }));
-  };
-
-  // 计算行合计
-  const getRowTotal = (item: BianfeiItem) => {
-    return Object.values(item.quantities).reduce((sum, q) => sum + (q || 0), 0);
-  };
-
-  // 计算列合计
-  const getColumnTotal = (size: string) => {
-    return items.reduce((sum, item) => sum + (item.quantities[size] || 0), 0);
-  };
-
-  // 计算总计
-  const getGrandTotal = () => {
-    return items.reduce((sum, item) => sum + getRowTotal(item), 0);
-  };
-
-  // 快选模式：快速填充
-  const handleQuickFill = (itemId: string, value: string) => {
-    const qty = parseInt(value) || 0;
-    setItems(prev => prev.map(item => {
-      if (item.id === itemId) {
-        const newQuantities: Record<string, number> = {};
-        selectedSizes.forEach(size => {
-          newQuantities[size] = qty;
-        });
-        return { ...item, quantities: newQuantities };
-      }
-      return item;
-    }));
   };
 
   // 保存
@@ -325,66 +225,22 @@ export default function NewBianfeiPage() {
               <Label className="flex items-center gap-1">
                 颜色 <span className="text-red-500">*</span>
               </Label>
-              <Select value={color} onValueChange={setColor}>
-                <SelectTrigger>
-                  <SelectValue placeholder="请选择颜色" />
-                </SelectTrigger>
-                <SelectContent>
-                  {colorOptions.map(c => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ColorSelector
+                value={color}
+                onChange={setColor}
+                showCard={false}
+              />
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* 尺码选择 */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">尺码选择</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleSelectAllSizes}>
-                全选
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleClearSizes}>
-                清空
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {sizeOptions.map(size => (
-              <Badge
-                key={size}
-                variant={selectedSizes.includes(size) ? 'default' : 'outline'}
-                className={`cursor-pointer px-3 py-1.5 text-sm transition-colors ${
-                  selectedSizes.includes(size) 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'hover:bg-muted'
-                }`}
-                onClick={() => handleSizeToggle(size)}
-              >
-                {size}
-                {selectedSizes.includes(size) && (
-                  <X className="h-3 w-3 ml-1" onClick={(e) => {
-                    e.stopPropagation();
-                    handleSizeToggle(size);
-                  }} />
-                )}
-              </Badge>
-            ))}
-          </div>
-          {selectedSizes.length > 0 && (
-            <div className="mt-3 text-sm text-muted-foreground">
-              已选择 {selectedSizes.length} 个尺码：{selectedSizes.join(', ')}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <SizeSelector
+        multiple
+        selectedSizes={selectedSizes}
+        onSelectionChange={setSelectedSizes}
+      />
 
       {/* 高级设置 */}
       <Card>
@@ -419,109 +275,12 @@ export default function NewBianfeiPage() {
       </Card>
 
       {/* 数量录入表格 */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">数量录入</CardTitle>
-            <Button variant="outline" size="sm" onClick={addItem}>
-              <Plus className="h-4 w-4 mr-1" />
-              添加条目
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {selectedSizes.length === 0 ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <AlertCircle className="h-5 w-5 mr-2" />
-              请先选择尺码
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-muted/50">
-                    <th className="border p-2 text-left w-12">序号</th>
-                    <th className="border p-2 text-left w-32">条目名称</th>
-                    {selectedSizes.map(size => (
-                      <th key={size} className="border p-2 text-center w-24">
-                        {size}
-                        {quickMode && (
-                          <div className="mt-1">
-                            <input
-                              type="number"
-                              placeholder="快填"
-                              className="w-full px-1 py-0.5 text-xs border rounded"
-                              onChange={(e) => {
-                                items.forEach(item => handleQuickFill(item.id, e.target.value));
-                              }}
-                            />
-                          </div>
-                        )}
-                      </th>
-                    ))}
-                    <th className="border p-2 text-center w-20">合计</th>
-                    <th className="border p-2 w-16">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, index) => (
-                    <tr key={item.id}>
-                      <td className="border p-2 text-center">{index + 1}</td>
-                      <td className="border p-2">
-                        <input
-                          type="text"
-                          value={item.name}
-                          onChange={(e) => updateItemName(item.id, e.target.value)}
-                          className="w-full px-2 py-1 border rounded"
-                          placeholder="条目名称"
-                        />
-                      </td>
-                      {selectedSizes.map(size => (
-                        <td key={size} className="border p-1">
-                          <input
-                            type="number"
-                            value={item.quantities[size] || ''}
-                            onChange={(e) => updateQuantity(item.id, size, e.target.value)}
-                            className="w-full px-2 py-1 border rounded text-center"
-                            placeholder="数量"
-                            min="0"
-                          />
-                        </td>
-                      ))}
-                      <td className="border p-2 text-center font-medium">
-                        {getRowTotal(item)}
-                      </td>
-                      <td className="border p-2 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(item.id)}
-                          disabled={items.length === 1}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {/* 合计行 */}
-                  <tr className="bg-muted/30 font-medium">
-                    <td className="border p-2" colSpan={2}>合计</td>
-                    {selectedSizes.map(size => (
-                      <td key={size} className="border p-2 text-center">
-                        {getColumnTotal(size)}
-                      </td>
-                    ))}
-                    <td className="border p-2 text-center text-primary font-bold">
-                      {getGrandTotal()}
-                    </td>
-                    <td className="border p-2"></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <SizeQuantityTable
+        sizes={selectedSizes}
+        items={items}
+        onItemsChange={setItems}
+        quickMode={quickMode}
+      />
 
       {/* 备注 */}
       <Card>

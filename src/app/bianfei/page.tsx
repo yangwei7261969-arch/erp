@@ -31,10 +31,9 @@ import {
   Edit,
   FileText,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBadge, STATUS_CONFIGS } from '@/components/common/StatusBadge';
 
 interface BianfeiRecord {
   id: string;
@@ -88,17 +87,6 @@ export default function BianfeiListPage() {
     } catch (error) {
       console.error('Delete error:', error);
     }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { label: string; className: string }> = {
-      pending: { label: '待处理', className: 'bg-amber-100 text-amber-700' },
-      in_progress: { label: '进行中', className: 'bg-blue-100 text-blue-700' },
-      completed: { label: '已完成', className: 'bg-green-100 text-green-700' },
-      cancelled: { label: '已取消', className: 'bg-gray-100 text-gray-700' },
-    };
-    const s = statusMap[status] || statusMap.pending;
-    return <Badge className={s.className}>{s.label}</Badge>;
   };
 
   const filteredRecords = records.filter(r => {
@@ -212,7 +200,12 @@ export default function BianfeiListPage() {
                       </div>
                     </TableCell>
                     <TableCell>{record.total_quantity}</TableCell>
-                    <TableCell>{getStatusBadge(record.status)}</TableCell>
+                    <TableCell>
+                      <StatusBadge 
+                        status={record.status} 
+                        customConfig={STATUS_CONFIGS.production} 
+                      />
+                    </TableCell>
                     <TableCell>
                       {new Date(record.created_at).toLocaleDateString()}
                     </TableCell>
