@@ -40,6 +40,8 @@ export default function DatabaseInitPage() {
     permission_data?: string;
   }>({});
   const [activeTab, setActiveTab] = useState('status');
+  const [seeding, setSeeding] = useState(false);
+  const [seedResult, setSeedResult] = useState<{success: boolean; message: string; counts?: Record<string, number>} | null>(null);
 
   // 检查数据库状态
   const checkDatabase = async () => {
@@ -114,6 +116,36 @@ export default function DatabaseInitPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success(`${filename} 下载完成`);
+  };
+
+  // 一键填充演示数据
+  const seedDemoData = async () => {
+    setSeeding(true);
+    setSeedResult(null);
+    try {
+      const response = await fetch('/api/seed-demo-data');
+      const data = await response.json();
+      
+      setSeedResult({
+        success: data.success,
+        message: data.message || (data.success ? '演示数据填充成功' : '填充失败'),
+        counts: data.counts
+      });
+      
+      if (data.success) {
+        toast.success('演示数据已成功填充');
+      } else {
+        toast.error('演示数据填充失败: ' + (data.error || '未知错误'));
+      }
+    } catch (error) {
+      setSeedResult({
+        success: false,
+        message: '请求失败: ' + String(error)
+      });
+      toast.error('请求失败');
+    } finally {
+      setSeeding(false);
+    }
   };
 
   // 渲染表状态
@@ -256,11 +288,46 @@ export default function DatabaseInitPage() {
             <p className="text-muted-foreground">管理数据库表结构和初始数据</p>
           </div>
         </div>
-        <Button onClick={checkDatabase} disabled={status.loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${status.loading ? 'animate-spin' : ''}`} />
-          刷新状态
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={seedDemoData} 
+            disabled={seeding}
+            variant="default"
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${seeding ? 'animate-spin' : ''}`} />
+            一键填充演示数据
+          </Button>
+          <Button onClick={checkDatabase} disabled={status.loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${status.loading ? 'animate-spin' : ''}`} />
+            刷新状态
+          </Button>
+        </div>
       </div>
+
+      {/* 演示数据填充结果 */}
+      {seedResult && (
+        <Alert className={seedResult.success ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}>
+          {seedResult.success ? (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          ) : (
+            <XCircle className="h-4 w-4 text-red-500" />
+          )}
+          <AlertTitle>{seedResult.success ? '填充成功' : '填充失败'}</AlertTitle>
+          <AlertDescription>
+            <p>{seedResult.message}</p>
+            {seedResult.counts && (
+              <div className="mt-2 grid grid-cols-4 md:grid-cols-6 gap-2 text-sm">
+                {Object.entries(seedResult.counts).map(([key, value]) => (
+                  <div key={key} className="bg-white/50 px-2 py-1 rounded">
+                    <span className="font-medium">{value}</span> {key}
+                  </div>
+                ))}
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* 使用说明 */}
       <Alert>
