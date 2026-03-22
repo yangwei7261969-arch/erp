@@ -45,6 +45,7 @@ import {
   AlertTriangle,
   BarChart3,
   Database,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -87,11 +88,25 @@ const menuGroups: MenuGroup[] = [
         permission: { module: 'mes', action: 'view' },
       },
       {
+        title: 'KPI绩效',
+        icon: TrendingUp,
+        href: '/kpi-dashboard',
+        roles: ['boss', 'manager', 'production_manager', 'hr', 'factory_admin'],
+        permission: { module: 'dashboard', action: 'view' },
+      },
+      {
         title: '预警系统',
         icon: AlertTriangle,
         href: '/alert-system',
         roles: ['boss', 'manager', 'production_manager', 'factory_admin'],
         permission: { module: 'alert', action: 'view' },
+      },
+      {
+        title: '异常管理',
+        icon: AlertTriangle,
+        href: '/exception-workbench',
+        roles: ['boss', 'manager', 'production_manager', 'qc', 'factory_admin'],
+        permission: { module: 'alert', action: 'handle' },
       },
     ],
   },
@@ -213,6 +228,13 @@ const menuGroups: MenuGroup[] = [
         title: '成本分析',
         icon: BarChart3,
         href: '/cost-analysis',
+        roles: ['finance', 'accountant', 'boss', 'manager', 'factory_admin'],
+        permission: { module: 'cost', action: 'view' },
+      },
+      {
+        title: '利润分析',
+        icon: TrendingUp,
+        href: '/profit-analysis',
         roles: ['finance', 'accountant', 'boss', 'manager', 'factory_admin'],
         permission: { module: 'cost', action: 'view' },
       },

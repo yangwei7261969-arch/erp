@@ -16,12 +16,18 @@ export async function GET(request: NextRequest) {
     const seedPath2 = path.join(process.cwd(), 'database', 'seed-data-part2.sql');
     const permissionTablesPath = path.join(process.cwd(), 'database', 'permission-tables.sql');
     const permissionDataPath = path.join(process.cwd(), 'database', 'permission-data.sql');
+    const profitPath = path.join(process.cwd(), 'database', 'profit-system.sql');
+    const exceptionPath = path.join(process.cwd(), 'database', 'exception-system.sql');
+    const kpiPath = path.join(process.cwd(), 'database', 'kpi-system.sql');
 
     let schemaSQL = '';
     let seedSQL1 = '';
     let seedSQL2 = '';
     let permissionTablesSQL = '';
     let permissionDataSQL = '';
+    let profitSQL = '';
+    let exceptionSQL = '';
+    let kpiSQL = '';
 
     try {
       schemaSQL = fs.readFileSync(schemaPath, 'utf-8');
@@ -53,6 +59,24 @@ export async function GET(request: NextRequest) {
       permissionDataSQL = '-- Permission data file not found';
     }
 
+    try {
+      profitSQL = fs.readFileSync(profitPath, 'utf-8');
+    } catch {
+      profitSQL = '-- Profit system file not found';
+    }
+
+    try {
+      exceptionSQL = fs.readFileSync(exceptionPath, 'utf-8');
+    } catch {
+      exceptionSQL = '-- Exception system file not found';
+    }
+
+    try {
+      kpiSQL = fs.readFileSync(kpiPath, 'utf-8');
+    } catch {
+      kpiSQL = '-- KPI system file not found';
+    }
+
     return NextResponse.json({
       success: true,
       files: {
@@ -60,14 +84,20 @@ export async function GET(request: NextRequest) {
         seed_part1: '/database/seed-data-part1.sql',
         seed_part2: '/database/seed-data-part2.sql',
         permission_tables: '/database/permission-tables.sql',
-        permission_data: '/database/permission-data.sql'
+        permission_data: '/database/permission-data.sql',
+        profit_system: '/database/profit-system.sql',
+        exception_system: '/database/exception-system.sql',
+        kpi_system: '/database/kpi-system.sql'
       },
       sql: {
         schema: schemaSQL,
         seed_part1: seedSQL1,
         seed_part2: seedSQL2,
         permission_tables: permissionTablesSQL,
-        permission_data: permissionDataSQL
+        permission_data: permissionDataSQL,
+        profit_system: profitSQL,
+        exception_system: exceptionSQL,
+        kpi_system: kpiSQL
       }
     });
   } catch (error) {
@@ -101,7 +131,13 @@ export async function POST(request: NextRequest) {
       'notifications', 'notification_rules',
       'system_config', 'operation_logs',
       // 权限相关表
-      'permissions', 'role_permissions', 'user_roles', 'user_permissions', 'user_data_permissions'
+      'permissions', 'role_permissions', 'user_roles', 'user_permissions', 'user_data_permissions',
+      // 利润系统表
+      'order_costs', 'cost_transactions', 'style_cost_standards',
+      // 异常闭环系统表
+      'exception_types', 'exceptions', 'exception_handlers', 'exception_actions',
+      // KPI绩效系统表
+      'employee_kpi_daily', 'line_kpi_daily', 'kpi_alerts', 'kpi_thresholds'
     ];
 
     // 检查表是否存在
@@ -138,21 +174,40 @@ export async function POST(request: NextRequest) {
     const schemaPath = path.join(process.cwd(), 'database', 'schema.sql');
     const seedPath1 = path.join(process.cwd(), 'database', 'seed-data-part1.sql');
     const seedPath2 = path.join(process.cwd(), 'database', 'seed-data-part2.sql');
+    const permissionTablesPath = path.join(process.cwd(), 'database', 'permission-tables.sql');
+    const permissionDataPath = path.join(process.cwd(), 'database', 'permission-data.sql');
+    const profitPath = path.join(process.cwd(), 'database', 'profit-system.sql');
+    const exceptionPath = path.join(process.cwd(), 'database', 'exception-system.sql');
+    const kpiPath = path.join(process.cwd(), 'database', 'kpi-system.sql');
 
     let sql = '';
     try {
       if (action === 'init_schema' || action === 'init_all') {
         sql += fs.readFileSync(schemaPath, 'utf-8') + '\n\n';
+        sql += fs.readFileSync(permissionTablesPath, 'utf-8') + '\n\n';
+        sql += fs.readFileSync(profitPath, 'utf-8') + '\n\n';
+        sql += fs.readFileSync(exceptionPath, 'utf-8') + '\n\n';
+        sql += fs.readFileSync(kpiPath, 'utf-8') + '\n\n';
       }
       if (action === 'init_seed' || action === 'init_all') {
         sql += fs.readFileSync(seedPath1, 'utf-8') + '\n\n';
-        sql += fs.readFileSync(seedPath2, 'utf-8');
+        sql += fs.readFileSync(seedPath2, 'utf-8') + '\n\n';
+        sql += fs.readFileSync(permissionDataPath, 'utf-8');
+      }
+      if (action === 'init_profit') {
+        sql += fs.readFileSync(profitPath, 'utf-8');
+      }
+      if (action === 'init_exception') {
+        sql += fs.readFileSync(exceptionPath, 'utf-8');
+      }
+      if (action === 'init_kpi') {
+        sql += fs.readFileSync(kpiPath, 'utf-8');
       }
     } catch (err) {
       return NextResponse.json({ 
         error: '读取SQL文件失败', 
         details: String(err),
-        hint: '请确保 database 目录下存在 schema.sql, seed-data-part1.sql, seed-data-part2.sql 文件'
+        hint: '请确保 database 目录下存在所有必需的SQL文件'
       }, { status: 500 });
     }
 
