@@ -6,6 +6,7 @@ import { Header } from './header';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
+import PageAnnouncement from '@/components/notification/page-announcement';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -52,6 +53,8 @@ export function AppLayout({ children, className }: AppLayoutProps) {
           onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           isMobile={isMobile}
         />
+        {/* 全局公告横幅 */}
+        <PageAnnouncement />
         <main className={cn('flex-1 overflow-auto bg-muted/30', className)}>
           {children}
         </main>

@@ -347,6 +347,12 @@ const menuGroups: MenuGroup[] = [
         roles: ['all'],
       },
       {
+        title: '通知管理',
+        icon: Bell,
+        href: '/notification-management',
+        roles: ['boss', 'manager', 'production_manager'],
+      },
+      {
         title: '公告中心',
         icon: Bell,
         href: '/announcements',

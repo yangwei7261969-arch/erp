@@ -12,9 +12,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Bell, Search, Settings, LogOut, User, Moon, Sun, Menu } from 'lucide-react';
+import { Search, Settings, LogOut, User, Moon, Sun, Menu } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import NotificationCenter from '@/components/notification/notification-center';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -68,37 +68,8 @@ export function Header({ onMenuClick, isMobile }: HeaderProps) {
           )}
         </Button>
 
-        {/* Notifications */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs">
-                3
-              </Badge>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72 md:w-80">
-            <DropdownMenuLabel>通知</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="flex flex-col items-start gap-1">
-              <p className="text-sm font-medium">生产订单 #PO2024001 已完成</p>
-              <p className="text-xs text-muted-foreground">10 分钟前</p>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1">
-              <p className="text-sm font-medium">库存预警：布料-蓝色棉布 库存不足</p>
-              <p className="text-xs text-muted-foreground">1 小时前</p>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1">
-              <p className="text-sm font-medium">新客户订单待处理</p>
-              <p className="text-xs text-muted-foreground">2 小时前</p>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-center text-primary">
-              查看全部通知
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Notifications - 使用新的通知中心组件 */}
+        <NotificationCenter />
 
         {/* User Menu */}
         <DropdownMenu>
