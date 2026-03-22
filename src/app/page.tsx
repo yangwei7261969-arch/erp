@@ -421,18 +421,42 @@ export default function DashboardPage() {
           <CardTitle className="text-base">快捷操作</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+          <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-12 gap-2">
             <Link href="/production" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
               <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                 <Factory className="h-5 w-5 text-blue-600" />
               </div>
               <span className="text-xs text-center">生产订单</span>
             </Link>
+            <Link href="/cutting" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-cyan-100 dark:bg-cyan-900 rounded-full flex items-center justify-center">
+                <Activity className="h-5 w-5 text-cyan-600" />
+              </div>
+              <span className="text-xs text-center">裁床管理</span>
+            </Link>
+            <Link href="/process-scan" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900 rounded-full flex items-center justify-center">
+                <Package className="h-5 w-5 text-pink-600" />
+              </div>
+              <span className="text-xs text-center">工序扫码</span>
+            </Link>
+            <Link href="/quality-management" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-rose-100 dark:bg-rose-900 rounded-full flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-rose-600" />
+              </div>
+              <span className="text-xs text-center">质量管理</span>
+            </Link>
             <Link href="/outsource-tracking" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
               <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
                 <Building2 className="h-5 w-5 text-purple-600" />
               </div>
               <span className="text-xs text-center">外发跟踪</span>
+            </Link>
+            <Link href="/suppliers" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900 rounded-full flex items-center justify-center">
+                <Building2 className="h-5 w-5 text-teal-600" />
+              </div>
+              <span className="text-xs text-center">供应商</span>
             </Link>
             <Link href="/shipping-calendar" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
               <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
@@ -452,23 +476,94 @@ export default function DashboardPage() {
               </div>
               <span className="text-xs text-center">物料库存</span>
             </Link>
+            <Link href="/finished-inventory" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900 rounded-full flex items-center justify-center">
+                <Package className="h-5 w-5 text-amber-600" />
+              </div>
+              <span className="text-xs text-center">成衣库存</span>
+            </Link>
             <Link href="/finance" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
               <div className="w-10 h-10 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
                 <DollarSign className="h-5 w-5 text-red-600" />
               </div>
               <span className="text-xs text-center">财务管理</span>
             </Link>
-            <Link href="/permissions" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+            <Link href="/employees" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
               <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-full flex items-center justify-center">
                 <Users className="h-5 w-5 text-indigo-600" />
               </div>
+              <span className="text-xs text-center">员工管理</span>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 更多功能入口 */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">更多功能</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-10 gap-2">
+            <Link href="/ai-assistant" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-violet-100 dark:bg-violet-900 rounded-full flex items-center justify-center">
+                <Activity className="h-5 w-5 text-violet-600" />
+              </div>
+              <span className="text-xs text-center">AI助手</span>
+            </Link>
+            <Link href="/mes-dashboard" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-sky-100 dark:bg-sky-900 rounded-full flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-sky-600" />
+              </div>
+              <span className="text-xs text-center">MES看板</span>
+            </Link>
+            <Link href="/kpi-dashboard" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900 rounded-full flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-emerald-600" />
+              </div>
+              <span className="text-xs text-center">KPI绩效</span>
+            </Link>
+            <Link href="/cost-analysis" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-lime-100 dark:bg-lime-900 rounded-full flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-lime-600" />
+              </div>
+              <span className="text-xs text-center">成本分析</span>
+            </Link>
+            <Link href="/piece-wages" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-fuchsia-100 dark:bg-fuchsia-900 rounded-full flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-fuchsia-600" />
+              </div>
+              <span className="text-xs text-center">计件工资</span>
+            </Link>
+            <Link href="/customers" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-slate-100 dark:bg-slate-900 rounded-full flex items-center justify-center">
+                <Users className="h-5 w-5 text-slate-600" />
+              </div>
+              <span className="text-xs text-center">客户管理</span>
+            </Link>
+            <Link href="/permissions" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-900 rounded-full flex items-center justify-center">
+                <Users className="h-5 w-5 text-zinc-600" />
+              </div>
               <span className="text-xs text-center">权限管理</span>
             </Link>
-            <Link href="/suppliers" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-              <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900 rounded-full flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-teal-600" />
+            <Link href="/alert-system" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-red-600" />
               </div>
-              <span className="text-xs text-center">供应商</span>
+              <span className="text-xs text-center">预警系统</span>
+            </Link>
+            <Link href="/process-tracking" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                <Activity className="h-5 w-5 text-blue-600" />
+              </div>
+              <span className="text-xs text-center">工序追溯</span>
+            </Link>
+            <Link href="/purchase" className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+              <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
+                <Package className="h-5 w-5 text-orange-600" />
+              </div>
+              <span className="text-xs text-center">采购管理</span>
             </Link>
           </div>
         </CardContent>

@@ -81,6 +81,12 @@ const menuGroups: MenuGroup[] = [
         permission: { module: 'dashboard', action: 'view' },
       },
       {
+        title: '高级功能',
+        icon: Sparkles,
+        href: '/advanced-features',
+        roles: ['all'],
+      },
+      {
         title: 'MES实时看板',
         icon: Activity,
         href: '/mes-dashboard',
