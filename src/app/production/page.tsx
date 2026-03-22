@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useToast } from '@/components/toast';
 import {
   Package,
   Search,
@@ -109,6 +110,7 @@ export default function ProductionPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [pageSize] = useState(12);
+  const toast = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ProductionOrder | null>(null);
@@ -223,6 +225,20 @@ export default function ProductionPage() {
   };
 
   const handleSubmit = async () => {
+    // 表单验证
+    if (!formData.style_no.trim()) {
+      toast.error('保存失败', '请输入款号');
+      return;
+    }
+    if (!formData.style_name.trim()) {
+      toast.error('保存失败', '请输入款名');
+      return;
+    }
+    if (!formData.quantity || formData.quantity <= 0) {
+      toast.error('保存失败', '请输入有效的数量');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const url = editingOrder ? `/api/production-orders/${editingOrder.id}` : '/api/production-orders';
@@ -234,12 +250,17 @@ export default function ProductionPage() {
         body: JSON.stringify(formData),
       });
       const result = await response.json();
+      
       if (result.success) {
+        toast.success(editingOrder ? '订单已更新' : '订单已创建');
         setDialogOpen(false);
         fetchOrders();
+      } else {
+        toast.error('保存失败', result.error || '未知错误');
       }
     } catch (error) {
       console.error('Submit error:', error);
+      toast.error('保存失败', '网络错误，请稍后重试');
     } finally {
       setSubmitting(false);
     }

@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useToast } from '@/components/toast';
 import {
   Users,
   Search,
@@ -61,6 +62,7 @@ export default function EmployeesPage() {
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const toast = useToast();
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -103,6 +105,20 @@ export default function EmployeesPage() {
   }, [page, departmentFilter, search]);
 
   const handleSubmit = async () => {
+    // 表单验证
+    if (!formData.name.trim()) {
+      toast.error('保存失败', '请输入员工姓名');
+      return;
+    }
+    if (!formData.department) {
+      toast.error('保存失败', '请选择部门');
+      return;
+    }
+    if (!formData.position.trim()) {
+      toast.error('保存失败', '请输入职位');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const response = await fetch('/api/employees', {
@@ -112,11 +128,15 @@ export default function EmployeesPage() {
       });
       const result = await response.json();
       if (result.success) {
+        toast.success('员工已添加');
         setDialogOpen(false);
         fetchEmployees();
+      } else {
+        toast.error('保存失败', result.error || '未知错误');
       }
     } catch (error) {
       console.error('Submit error:', error);
+      toast.error('保存失败', '网络错误，请稍后重试');
     } finally {
       setSubmitting(false);
     }
@@ -131,13 +151,14 @@ export default function EmployeesPage() {
       });
       const result = await response.json();
       if (result.success) {
+        toast.success('员工已删除');
         fetchEmployees();
       } else {
-        alert(result.error || '删除失败');
+        toast.error('删除失败', result.error || '未知错误');
       }
     } catch (error) {
       console.error('Delete error:', error);
-      alert('删除失败');
+      toast.error('删除失败', '网络错误，请稍后重试');
     }
   };
 

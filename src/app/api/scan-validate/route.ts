@@ -57,7 +57,7 @@ async function validateScan(client: any, body: any) {
 
   // 解析条码
   const parseResult = await parseBarcodeInfo(client, barcode);
-  if (!parseResult.success) {
+  if (!parseResult.success || !parseResult.data) {
     return NextResponse.json(parseResult);
   }
 
@@ -224,12 +224,18 @@ async function startProcess(client: any, body: any) {
     return NextResponse.json({
       success: false,
       error: '扫码验证失败',
-      details: validationResult.data.errors
+      details: validationResult.data?.errors || []
     });
   }
 
   // 解析条码
   const parseResult = await parseBarcodeInfo(client, barcode);
+  if (!parseResult.data) {
+    return NextResponse.json({
+      success: false,
+      error: '条码解析失败'
+    });
+  }
   const { bundle_id, process_id } = parseResult.data;
 
   // 创建跟踪记录
@@ -279,6 +285,12 @@ async function endProcess(client: any, body: any) {
 
   // 解析条码
   const parseResult = await parseBarcodeInfo(client, barcode);
+  if (!parseResult.data) {
+    return NextResponse.json({
+      success: false,
+      error: '条码解析失败'
+    });
+  }
   const { bundle_id, process_id } = parseResult.data;
 
   // 找到进行中的工序记录

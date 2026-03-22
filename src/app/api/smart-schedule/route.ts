@@ -306,7 +306,7 @@ async function suggestSchedule(client: any, searchParams: URLSearchParams) {
   });
 
   // 按分数排序
-  suggestions.sort((a, b) => b.score - a.score);
+  suggestions.sort((a: any, b: any) => b.score - a.score);
 
   return NextResponse.json({
     success: true,
@@ -376,7 +376,7 @@ function calculateEstimatedTime(order: any, line: any): number {
   const baseHours = Math.ceil(order.total_quantity / line.capacity);
 
   // 考虑工序复杂度
-  const processes = order.styles?.style_processes || [];
+  const processes: any[] = order.styles?.style_processes || [];
   const complexityFactor = 1 + (processes.length * 0.05);
 
   return Math.ceil(baseHours * complexityFactor);
@@ -790,7 +790,7 @@ async function optimizeSchedule(client: any, searchParams: URLSearchParams) {
   }
 
   // 按优先级和交期排序
-  const optimized = orders.sort((a, b) => {
+  const optimized: any[] = (orders || []).sort((a: any, b: any) => {
     // 首先按优先级
     if (a.priority !== b.priority) {
       return (b.priority || 0) - (a.priority || 0);

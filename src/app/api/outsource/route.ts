@@ -134,10 +134,10 @@ async function getSuppliers(client: any, searchParams: URLSearchParams) {
       suppliers: suppliersWithScores,
       summary: {
         total: suppliersWithScores.length,
-        excellent: suppliersWithScores.filter(s => s.level === 'A').length,
-        good: suppliersWithScores.filter(s => s.level === 'B').length,
-        average: suppliersWithScores.filter(s => s.level === 'C').length,
-        poor: suppliersWithScores.filter(s => s.level === 'D').length
+        excellent: suppliersWithScores.filter((s: any) => s.level === 'A').length,
+        good: suppliersWithScores.filter((s: any) => s.level === 'B').length,
+        average: suppliersWithScores.filter((s: any) => s.level === 'C').length,
+        poor: suppliersWithScores.filter((s: any) => s.level === 'D').length
       }
     }
   });
@@ -828,10 +828,10 @@ async function rateSupplier(client: any, data: any) {
     .eq('supplier_id', supplierId);
 
   const count = avgScores?.length || 0;
-  const avgQuality = avgScores?.reduce((sum, r) => sum + r.quality_score, 0) / count || 0;
-  const avgDelivery = avgScores?.reduce((sum, r) => sum + r.delivery_score, 0) / count || 0;
-  const avgPrice = avgScores?.reduce((sum, r) => sum + r.price_score, 0) / count || 0;
-  const avgOverall = avgScores?.reduce((sum, r) => sum + r.overall_score, 0) / count || 0;
+  const avgQuality = avgScores?.reduce((sum: number, r: any) => sum + r.quality_score, 0) / count || 0;
+  const avgDelivery = avgScores?.reduce((sum: number, r: any) => sum + r.delivery_score, 0) / count || 0;
+  const avgPrice = avgScores?.reduce((sum: number, r: any) => sum + r.price_score, 0) / count || 0;
+  const avgOverall = avgScores?.reduce((sum: number, r: any) => sum + r.overall_score, 0) / count || 0;
 
   await client
     .from('suppliers')
